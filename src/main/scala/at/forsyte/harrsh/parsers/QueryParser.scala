@@ -68,7 +68,7 @@ object QueryParser extends HarrshLogging {
   }
 
   private def tryAll(fileName: String): Query = {
-    val parseOptions: Stream[Option[Query]] = Stream(
+    val parseOptions: LazyList[Option[Query]] = LazyList(
       EntailmentParsers.parseHarrshEntailmentFormat(fileName).map(_.setFileName(fileName)),
       slcomp.parseFileToQuery(fileName),
       SidParsers.CombinedSidParser.runOnSid(IOUtils.readFile(fileName)) map (sid => RefinementQuery(sid, Some(RunSat), ProblemStatus.Unknown, Some(fileName)))

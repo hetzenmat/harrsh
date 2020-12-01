@@ -2,16 +2,17 @@ package at.forsyte.harrsh.util
 
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.stream.Collectors
 
 import scala.annotation.tailrec
 
 object StringUtils {
 
   @tailrec def literalReplacements(reps : Seq[(String,String)], s : String) : String = {
-    if (reps.isEmpty) s else literalReplacements(reps.tail, s.replaceAllLiterally(reps.head._1, reps.head._2))
+    if (reps.isEmpty) s else literalReplacements(reps.tail, s.replace(reps.head._1, reps.head._2))
   }
 
-  private def computeColumnLength(entries : Seq[Any], minLength : Int) : Int = Math.max(minLength, (""+:entries).map(_.toString.size).max + 1)
+  private def computeColumnLength(entries : Seq[Any], minLength : Int) : Int = Math.max(minLength, (""+:entries).map(_.toString.length).max + 1)
 
   sealed trait ColAlignment {
     def alignRight: Boolean = this match {
@@ -42,7 +43,7 @@ object StringUtils {
 
     val hrule = delimLine(colLengths)
 
-    val withLayout = (row: Seq[String]) => (row, colLengths, config.colAlignment).zipped.toSeq
+    val withLayout = (row: Seq[String]) => row.lazyZip(colLengths).lazyZip(config.colAlignment).toSeq
 
     val lines = for {
       entry <- entries
@@ -82,7 +83,7 @@ object StringUtils {
     }
   }
 
-  def indent(numSpaces: Int)(s: String) = s.lines.map((" "*numSpaces) + _).mkString("\n")
+  def indent(numSpaces: Int)(s: String) = s.lines.map((" "*numSpaces) + _).collect(Collectors.joining("\n")) // mkString("\n")
 
   def today(): String = {
     val now = Calendar.getInstance().getTime()

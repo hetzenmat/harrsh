@@ -6,6 +6,8 @@ import at.forsyte.harrsh.seplog.{Renaming, Var}
 import at.forsyte.harrsh.util.ToLatex
 import at.forsyte.harrsh.util.ToLatex._
 
+import scala.collection.immutable.SortedSet
+
 /**
   * Created by jkatelaa on 10/3/16.
   */
@@ -19,7 +21,7 @@ case class PureAtom(l: Var, r: Var, isEquality: Boolean) extends SepLogAtom with
 
   override def renameVars(f: Renaming): PureAtom = PureAtom(l.rename(f), r.rename(f), isEquality)
 
-  override def getVars : Set[Var] = Set(l, r)
+  override def getVars : SortedSet[Var] = SortedSet.empty[Var].incl(l).incl(r)
 
   def comparesFree: Boolean = getNonNullVars.forall(_.isFree)
 

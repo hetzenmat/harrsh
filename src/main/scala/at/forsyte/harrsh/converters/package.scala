@@ -8,7 +8,7 @@ package object converters {
 
   case class ConversionException(msg: String) extends Exception(msg)
 
-  def sanitize(s: String): String = s.replace('α', 'y').replaceAllLiterally("null","nil")
+  def sanitize(s: String): String = s.replace('α', 'y').replace("null","nil")
 
   trait EntailmentFormatConverter extends ((String, EntailmentQuery) => Seq[(String,String)])
 

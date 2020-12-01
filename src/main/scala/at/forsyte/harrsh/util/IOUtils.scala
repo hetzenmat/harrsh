@@ -16,18 +16,18 @@ object IOUtils {
     println(Console.BLUE + "Warning: " + warning + Console.RESET)
   }
 
-  def allFilesRecursively(topmostDirectory: String): Stream[File] = {
+  def allFilesRecursively(topmostDirectory: String): LazyList[File] = {
     allFilesRecursively(new File(topmostDirectory))
   }
 
-  def allFilesRecursively(topmostDirectory: File): Stream[File] = {
+  def allFilesRecursively(topmostDirectory: File): LazyList[File] = {
     if (topmostDirectory.exists && topmostDirectory.isDirectory) {
       val allLocalFiles = topmostDirectory.listFiles()
-      val localFiles = allLocalFiles.filter(_.isFile).toStream
-      val subDirs = allLocalFiles.filter(_.isDirectory).toStream
+      val localFiles = allLocalFiles.filter(_.isFile).to(LazyList)
+      val subDirs = allLocalFiles.filter(_.isDirectory).to(LazyList)
       localFiles ++ subDirs.flatMap(allFilesRecursively)
     } else {
-      Stream.empty[File]
+      LazyList.empty[File]
     }
   }
 

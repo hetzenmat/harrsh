@@ -313,7 +313,7 @@ object BijectiveRenamingUpdate extends HarrshLogging {
     val pairs = renameFrom.zip(renameTo)
     if (pairs.exists(p => p._1 != p._2)) {
       logger.trace("Will establish placeholder normalform via update " + pairs)
-      Some(fromPairs(pairs))
+      Some(fromPairs(pairs.toSeq))
     } else {
       None
     }
@@ -334,7 +334,7 @@ case class DropperUpdate(varsToDrop: Set[Var]) extends ConstraintUpdater {
       newRewritten = updatedRewritten ++ newRewrittenDiseqs
     } yield
       VarConstraints(
-        newUsage filterKeys(_.nonEmpty),
+        newUsage.view.filterKeys(_.nonEmpty).toMap,
         updateAndDropEmptyDiseqs(cs.ensuredDiseqs),
         newSpeculativeDiseqs,
         newSpeculativeEqs,

@@ -62,9 +62,9 @@ object PlaceholderVar {
     case e: UnsupportedOperationException => PlaceholderVar(0)
   }
 
-  def allUnusedPlaceholders(used: Set[PlaceholderVar]): Stream[FreeVar] = {
+  def allUnusedPlaceholders(used: Set[PlaceholderVar]): LazyList[FreeVar] = {
     for {
-      i <- Stream.from(0)
+      i <- LazyList.from(0)
       pv = PlaceholderVar(i)
       if !used.contains(pv)
     } yield pv.toFreeVar

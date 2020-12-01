@@ -34,6 +34,6 @@ case class Predicate(head: String, rules: Seq[RuleBody]) {
 
 object Predicate {
 
-  def predicateHeadToLatex(head: String) = head.replaceAllLiterally("_", "\\_")
+  def predicateHeadToLatex(head: String) = head.replace("_", "\\_")
 
 }

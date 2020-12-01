@@ -18,7 +18,7 @@ case class EntailmentInstance(lhs: EntailmentQuerySide, rhs: EntailmentQuerySide
   }
 
   override def toString: String = {
-    val ppSid = (sid: RichSid) => sid.toHarrshFormat.map("    " +).mkString("\n")
+    val ppSid = (sid: RichSid) => sid.toHarrshFormat.map("    " + _).mkString("\n")
     s"${lhs.topLevelConstraint} |= ${rhs.topLevelConstraint}\nLHS-SID {\n${ppSid(lhs.sid)}\n}\nRHS-SID {\n${ppSid(rhs.sid)}\n}\nStatus: $statusStr"
   }
 

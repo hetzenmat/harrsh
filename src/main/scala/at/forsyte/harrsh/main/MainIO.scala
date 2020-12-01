@@ -111,7 +111,7 @@ object MainIO extends HarrshLogging {
   private def writeLatexFileForRefinementResults(results: Seq[(RefinementQuery, AnalysisResult)], summary: String): Unit = {
     val resultStrings = tableEntries(results)
     val bulletPoints = summary.split("\n")
-    writeLatexFile(ResultFile, Headings, resultStrings, bulletPoints)
+    writeLatexFile(ResultFile, Headings, resultStrings, bulletPoints.toIndexedSeq)
   }
 
   def writeLatexFile(resultFile: String, headings: Seq[String], results: Seq[Seq[String]], bulletPoints: Seq[String] = Seq.empty): Unit = {
@@ -135,7 +135,7 @@ object MainIO extends HarrshLogging {
 
   def writeBenchmarkFile(results: Seq[(RefinementQuery,AnalysisResult)], fileName : String): Unit = {
     val content = results.map{
-      case (taskConfig, result) => taskConfig.fileName + "; " + taskConfig.taskString + "; " + (if (result.timedOut) "???" else !result.isEmpty)
+      case (taskConfig, result) => taskConfig.fileName.toString + "; " + taskConfig.taskString + "; " + (if (result.timedOut) "???" else !result.isEmpty)
     }.mkString("\n")
 
     writeFile(fileName, content)

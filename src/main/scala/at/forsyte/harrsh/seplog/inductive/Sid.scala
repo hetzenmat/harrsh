@@ -1,5 +1,7 @@
 package at.forsyte.harrsh.seplog.inductive
 
+import java.util.stream.{Collector, Collectors}
+
 /**
   * System of inductive definitions
   * Created by jens on 10/15/16.
@@ -7,7 +9,7 @@ package at.forsyte.harrsh.seplog.inductive
 case class Sid(override val startPred : String, override val preds : Seq[Predicate], override val description : String) extends SidLike {
 
   override def toString: String = {
-    val predStrings = preds.map(_.toString.lines.map(line => s"    $line ;").mkString("\n"))
+    val predStrings = preds.map(_.toString.linesIterator.map(line => s"    $line ;").mkString("\n"))
     description + " (start predicate '" + startPred + "'): " + predStrings.mkString("\n", "\n", "")
   }
 

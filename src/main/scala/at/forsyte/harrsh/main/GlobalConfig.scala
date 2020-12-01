@@ -101,7 +101,7 @@ object GlobalConfig {
       case "all" => all
       case "sat" => Seq(qf_shls_sat, qf_shid_sat)
       case "entl" => Seq(qf_shls_entl, qf_shlid_entl, qf_shid_entl)
-      case other => other.split(",").map(addPath)
+      case other => other.split(",").map(addPath).toIndexedSeq
     }
   }
 

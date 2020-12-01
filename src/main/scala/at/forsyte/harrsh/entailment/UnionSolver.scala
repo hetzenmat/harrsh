@@ -40,9 +40,9 @@ object UnionSolver extends TopLevelSolver {
   }
 
   private def checkValidityOf(finalUnionProfile: UnionProfile, sid: RichSid, rhsConstraint: TopLevelConstraint): Boolean = {
-    val finalDecomps = finalUnionProfile.taggedDecomps.filterKeys{
+    val finalDecomps = finalUnionProfile.taggedDecomps.view.filterKeys{
       _.isFinal(sid, rhsConstraint)
-    }
+    }.toMap
     logger.info("Final decompositions in union profile are:\n" + finalDecomps.mkString("\n"))
     if (finalDecomps.isEmpty) {
       logger.debug("No final decompositions => Entailment does not hold")
@@ -64,9 +64,9 @@ object UnionSolver extends TopLevelSolver {
     }
   }
 
-  private def singleTags(numberOfProfiles: Seq[Int]): Stream[Seq[Int]] = {
+  private def singleTags(numberOfProfiles: Seq[Int]): LazyList[Seq[Int]] = {
     if (numberOfProfiles.isEmpty) {
-      Stream(Seq.empty)
+      LazyList(Seq.empty)
     } else {
       for {
         tail <- singleTags(numberOfProfiles.tail)
@@ -86,7 +86,7 @@ object UnionSolver extends TopLevelSolver {
   }
 
   private def mkTrivialUnion(profile: EntailmentProfile): UnionProfile = {
-    val trivialMap = profile.decompsOrEmptySet.zip(Stream.continually(ProfileIdTag.empty)).toMap
+    val trivialMap = profile.decompsOrEmptySet.zip(LazyList.continually(ProfileIdTag.empty)).toMap
     UnionProfile(trivialMap, profile.params)
   }
 
@@ -120,19 +120,19 @@ object UnionSolver extends TopLevelSolver {
   private def toUnionProfile(profiles: Set[(EntailmentProfile, Int)]): UnionProfile = {
     val indexedDecomps = profiles.flatMap(addIndexToDecomps)
     val taggedDecomps = mergeIdentical(indexedDecomps)
-    val decompsTaggedWithSeq = taggedDecomps mapValues ProfileIdTag.fromSingleEntry
+    val decompsTaggedWithSeq = taggedDecomps.view.mapValues(ProfileIdTag.fromSingleEntry).toMap
     val sharedConstraints = profiles.head._1.sharedConstraints
     val params = profiles.head._1.params
     UnionProfile(decompsTaggedWithSeq, params)
   }
 
   private def addIndexToDecomps(indexedProfile: (EntailmentProfile, Int)): Set[(ContextDecomposition, Int)] = {
-    indexedProfile._1.decompsOrEmptySet zip Stream.continually(indexedProfile._2)
+    indexedProfile._1.decompsOrEmptySet.zip(LazyList.continually(indexedProfile._2))
   }
 
   private def mergeIdentical(indexedDecomps: Set[(ContextDecomposition, Int)]): Map[ContextDecomposition, Set[Int]] = {
     val grouped = indexedDecomps.groupBy(_._1)
-    grouped.mapValues(_.map(_._2))
+    grouped.view.mapValues(_.map(_._2)).toMap
   }
 
   sealed trait CompositionResult[+A] {

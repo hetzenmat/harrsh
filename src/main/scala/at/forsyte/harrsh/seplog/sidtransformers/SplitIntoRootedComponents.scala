@@ -6,6 +6,7 @@ import at.forsyte.harrsh.seplog.{BoundVar, Var}
 import at.forsyte.harrsh.util.Combinators
 
 import scala.annotation.tailrec
+import scala.collection.immutable.SortedSet
 
 object SplitIntoRootedComponents {
 
@@ -60,7 +61,7 @@ object SplitIntoRootedComponents {
       SymbolicHeap(atoms.reverse: _*)
     }
 
-    def boundVars: Set[BoundVar] = Var.boundVars(atoms.flatMap(_.getVars).toSet ++ Set(root))
+    def boundVars: SortedSet[BoundVar] = Var.boundVars((atoms.flatMap(_.getVars).foldLeft(SortedSet.empty[Var]) {(s:SortedSet[Var], i ) => s.incl(i)}) ++ SortedSet(root))
 
     override def toString: String = s"[$root --> ${atoms.mkString(" * ")}]"
   }
@@ -117,7 +118,7 @@ object SplitIntoRootedComponents {
 
   private def transitiveReachability(atoms: Seq[RootedAtom], closure: Closure): Map[Var,Set[Var]] = {
     val oneStepReach = rootedAtomsToReachabilityPairs(atoms, closure)
-    val groupedBySource = oneStepReach.groupBy(_._1).mapValues(_.map(_._2))
+    val groupedBySource = oneStepReach.groupBy(_._1).view.mapValues(_.map(_._2)).toMap
     Combinators.fixedPointOfMap(groupedBySource)
   }
 

@@ -9,7 +9,8 @@ import at.forsyte.harrsh.seplog.inductive._
 import at.forsyte.harrsh.seplog.sidtransformers.QueryToEntailmentInstance
 import at.forsyte.harrsh.util.ToLatex
 import at.forsyte.harrsh.util.ToLatex._
-
+import scala.jdk.CollectionConverters._
+import scala.language.implicitConversions
 import scala.util.Try
 
 sealed trait Query {
@@ -87,9 +88,9 @@ case class SatQuery(sid: SidLike, query: SymbolicHeap, override val status: Prob
     val sb = new StringBuilder()
     sb.append("SatBenchmark {\n")
     sb.append("  SID = {\n")
-    for (line <- sid.toString.lines) sb.append(s"    $line\n")
+    for (line <- sid.toString.lines.iterator().asScala) sb.append(s"    $line\n")
     sb.append("  }\n  Query = {\n")
-    for (line <- query.toString.lines) sb.append(s"    $line\n")
+    for (line <- query.toString.lines.iterator().asScala) sb.append(s"    $line\n")
     sb.append(s"  }\n  Status = $status\n")
     sb.append("}")
     sb.mkString

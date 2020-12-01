@@ -111,7 +111,7 @@ object TopLevelConstraint extends HarrshLogging {
   def fromSH(sh: SymbolicHeap) = TopLevelConstraint(sh.predCalls, sh.pure)
 
   def argsImplySubst(args: Seq[Var], subst: Substitution): Boolean = {
-    (args, subst.toSeq).zipped.forall{
+    args.lazyZip(subst.toSeq).forall{
       case (arg, substVal) =>
         // If the substitution contains a placeholder, we can substitute any value for it, including arg;
         // if it does not contain a placeholder, we have to check that the equivalence class in the substitution actually contains arg.

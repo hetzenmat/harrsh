@@ -38,14 +38,14 @@ case class MCHistory(iteration: Int, alloc : Seq[Var], stepLogger : MCHistory.St
 
 object MCHistory {
 
-  val emptyHistory = MCHistory(0, Seq.empty, DefaultStepLogger())
+  val emptyHistory: MCHistory = MCHistory(0, Seq.empty, DefaultStepLogger())
 
   sealed trait ModelCheckingStep
   case class PointerMatch(lhs : SymbolicHeap, rhs : SymbolicHeap, lhsPtr : PointsTo, rhsPtr : PointsTo) extends ModelCheckingStep {
-    override def toString = lhs + " |= " + rhs +  " ---[MATCHING]---> " + lhsPtr + " ~ " + rhsPtr
+    override def toString = s"$lhs |= $rhs ---[MATCHING]---> $lhsPtr ~ $rhsPtr"
   }
   case class UnfoldingStep(lhs : SymbolicHeap, rhs : SymbolicHeap, unfoldedRhs : SymbolicHeap) extends ModelCheckingStep {
-    override def toString = lhs + " |= " + rhs + " ---[UNFOLDING]---> " + unfoldedRhs
+    override def toString = s"$lhs |= $rhs ---[UNFOLDING]---> $unfoldedRhs"
   }
 
   trait StepLogger {

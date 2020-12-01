@@ -8,6 +8,7 @@ import at.forsyte.harrsh.seplog.inductive._
 import at.forsyte.harrsh.util.Combinators
 
 import scala.annotation.tailrec
+import scala.collection.immutable.SortedSet
 import scala.util.Try
 
 object SplitMultiPointerRules extends HarrshLogging {
@@ -100,9 +101,9 @@ object SplitMultiPointerRules extends HarrshLogging {
         remainingOriginalBoundVars = otherBvars)
     }
 
-    lazy val originalFreeVars: Set[FreeVar] = Var.freeNonNullVars(allPtos.toSet[PointsTo].flatMap(_.getVars) ++ calls.flatMap(_.getVars))
+    lazy val originalFreeVars: SortedSet[FreeVar] = Var.freeNonNullVars(SortedSet.empty[Var] ++ (allPtos.toSet[PointsTo].flatMap(_.getVars) ++ calls.flatMap(_.getVars)))
 
-    lazy val boundVars: Set[BoundVar] = Var.boundVars(allPtos.toSet[PointsTo].flatMap(_.getVars) ++ calls.flatMap(_.getVars))
+    lazy val boundVars: SortedSet[BoundVar] = Var.boundVars(SortedSet.empty[Var] ++ (allPtos.toSet[PointsTo].flatMap(_.getVars) ++ calls.flatMap(_.getVars)))
   }
 
   object PtoFraction {

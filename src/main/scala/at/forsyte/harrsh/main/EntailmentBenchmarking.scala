@@ -4,12 +4,13 @@ import java.util
 import java.util.concurrent.TimeUnit
 
 import at.forsyte.harrsh.entailment.EntailmentChecker.EntailmentFixedPointStats
-import org.openjdk.jmh.annotations._
+/*import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.results.{AverageTimeResult, RunResult}
 import org.openjdk.jmh.runner.Runner
 import org.openjdk.jmh.runner.options.{Options, OptionsBuilder, TimeValue}
+*/
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.sys.process._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future, TimeoutException}
@@ -19,7 +20,7 @@ import at.forsyte.harrsh.util.{IOUtils, StringUtils}
 
 object BenchmarkingConfig {
 
-  // Tools
+  /*// Tools
   val Harrsh = "at.forsyte.harrsh.main.HarrshBenchmarking.benchmarkHarrsh"
   val Songbird = "at.forsyte.harrsh.main.SongbirdBenchmarking.benchmarkSongbird"
   val Slide = "at.forsyte.harrsh.main.SlideBenchmarking.benchmarkSlide"
@@ -420,5 +421,5 @@ object EntailmentBenchmarking {
       exportResultsToLatex(resultsByFile)
     }
     println("FINISHED ALL BENCHMARKS")
-  }
+  }*/
 }

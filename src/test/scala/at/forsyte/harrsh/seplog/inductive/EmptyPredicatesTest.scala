@@ -1,5 +1,6 @@
 package at.forsyte.harrsh.seplog.inductive
 
+import at.forsyte.harrsh.ExampleSids.{P, x1, x2, y1}
 import at.forsyte.harrsh.{ExampleSids, TestValues}
 import at.forsyte.harrsh.test.HarrshTableTest
 
@@ -58,13 +59,11 @@ class EmptyPredicatesTest extends HarrshTableTest with TestValues {
   )
 
   property("Computation of empty predicates") {
-
     forAll(inputs) {
       (sid, result) =>
         Given(sid.toString)
         Then("The pure constraints for empty unfoldings of the predicate should be " + result)
         EmptyPredicates(sid).underlying shouldEqual result
     }
-
   }
 }

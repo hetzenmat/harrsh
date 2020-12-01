@@ -202,7 +202,7 @@ case class ContextDecomposition(parts: Set[EntailmentContext], constraints: VarC
   private def doubleAlloc(sid: RichSid): Boolean = {
     // FIXME: Shouldn't we check all allocated variables rather than only the roots?
     val doublyAlloced = for {
-      (k, vs) <- rootParamSubsts(sid).groupBy(vs => vs).toStream
+      (k, vs) <- rootParamSubsts(sid).groupBy(vs => vs).to(LazyList)
       if vs.size > 1
     } yield k
     val res = doublyAlloced.nonEmpty

@@ -39,6 +39,7 @@ object EmptyPredicates extends HarrshLogging {
     new EmptyPredicates(allConstraintsForEmptyModels)
   }
 
+
   private def step(sid: SidLike)(curr: Map[String, Set[Set[PureAtom]]]): Map[String, Set[Set[PureAtom]]] = {
     logger.debug("Executing a step from " + curr)
 
@@ -46,7 +47,7 @@ object EmptyPredicates extends HarrshLogging {
       pred <- sid.preds
       rule <- pred.rules
       if rule.hasCallsButNoPointers
-      pure = pureConstraintsIfAllEmpty(rule, curr)
+      pure =  pureConstraintsIfAllEmpty(rule, curr)
     } yield (pred.head, pure)
 
     newEntries.foldLeft(curr) {
@@ -57,6 +58,7 @@ object EmptyPredicates extends HarrshLogging {
   private def pureConstraintsIfAllEmpty(rule: RuleBody, prev: Map[String, Set[Set[PureAtom]]]): Set[Set[PureAtom]] = {
     if (rule.body.predCalls forall (call => prev.isDefinedAt(call.name))) {
       val pureConstraintsByCall: Seq[Set[Set[PureAtom]]] = rule.body.predCalls map instantiatedPureConstraints(prev)
+      logger.debug("choices: " + Combinators.choices(pureConstraintsByCall))
       for {
         pureByCall: Seq[Set[PureAtom]] <- Combinators.choices(pureConstraintsByCall)
         combinedPureConstraints = Closure.ofAtoms(pureByCall.flatten).asSetOfAtoms

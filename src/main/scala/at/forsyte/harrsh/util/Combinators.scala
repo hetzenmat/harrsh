@@ -272,7 +272,7 @@ object Combinators {
   }
 
   def counts[A](as: Iterable[A]): Map[A, Int] = {
-    as.groupBy(a => a).mapValues(_.size)
+    as.groupBy(a => a).view.mapValues(_.size).toMap
   }
 
 }

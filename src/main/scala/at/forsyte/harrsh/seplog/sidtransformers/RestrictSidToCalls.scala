@@ -16,8 +16,8 @@ object RestrictSidToCalls {
     val restrictor = (a: RichSid, preds: Set[String]) => {
       a.copy(startPred = "UNDEFINED",
         preds = sid.preds.filter(pred => preds.contains(pred.head)),
-        roots = sid.roots.filterKeys(pred => preds.contains(pred)),
-        sinks = sid.sinks.filterKeys(pred => preds.contains(pred)))
+        roots = sid.roots.view.filterKeys(pred => preds.contains(pred)).toMap,
+        sinks = sid.sinks.view.filterKeys(pred => preds.contains(pred)).toMap)
     }
     restrictToCalls(sid, calls, restrictor)
   }

@@ -46,9 +46,9 @@ object RefinementAlgorithms {
     val typedResultStates = res.reachedStates.pairs.map {
       case (str, state) => (str, state.asInstanceOf[ha.State])
     }
-    val statesByPred: Map[String, Set[ha.State]] = typedResultStates.groupBy(_._1).mapValues(pairs => pairs.map(_._2))
+    val statesByPred: Map[String, Set[ha.State]] = typedResultStates.groupBy(_._1).view.mapValues(pairs => pairs.map(_._2)).toMap
     val transitionMap: Map[String, Set[Transition[ha.State]]] = {
-      res.reachedTransitions.underlying.groupBy(_.headPredicate) mapValues (_ map (_.asInstanceOf[Transition[ha.State]]))
+      res.reachedTransitions.underlying.groupBy(_.headPredicate).view.mapValues(_ map (_.asInstanceOf[Transition[ha.State]])).toMap
     }
     (statesByPred, transitionMap)
   }
@@ -58,7 +58,7 @@ object RefinementAlgorithms {
     val typedResultStates = res.reachedStates.pairs.map {
       case (str, state) => (str, state.asInstanceOf[ha.State])
     }
-    typedResultStates.groupBy(_._1).mapValues(pairs => pairs.map(_._2))
+    typedResultStates.groupBy(_._1).view.mapValues(pairs => pairs.map(_._2)).toMap
   }
 
   def refineSID(sid: Sid, ha: HeapAutomaton, reportProgress: Boolean): (Sid,Boolean) = {
@@ -85,11 +85,11 @@ object RefinementAlgorithms {
       }
     }
     println("Finished analysis.")
-    println
+    println()
 
     // TODO Abstract printing result tables into its own function? (Compare Benchmarking.printBenchmarkResults)
     println("Analysis results for: " + sid)
-    println
+    println()
 
     val headings = Seq("Property", "Result", "Witness")
     val minColLengths = Seq(20,20,40)
@@ -106,7 +106,7 @@ object RefinementAlgorithms {
     val refined = refineSID(sid, task.getAutomaton, timeout, reportProgress = false)
     refined match {
       case None =>
-        println(task + " did not finish within timeout (" + timeout.toSeconds + "s)")
+        println(task.toString + " did not finish within timeout (" + timeout.toSeconds + "s)")
         AnalysisResult(task, None, None)
       case Some((refinedSid,empty)) =>
         println("Finished " + task + ": " + task.resultToString(empty))

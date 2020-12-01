@@ -92,7 +92,7 @@ case class VarConstraints(usage: VarUsageByLabel, ensuredDiseqs: Set[DiseqConstr
       None
     } else {
       Some(VarConstraints(
-        usage.filterKeys(_.exists(varsToRetain)),
+        usage.view.filterKeys(_.exists(varsToRetain)).toMap,
         ensuredDiseqs.filter(_.isAbout(varsToRetain)),
         unaffected,
         speculativeEqs,
@@ -359,7 +359,7 @@ object VarConstraints extends HarrshLogging {
       throw new IllegalArgumentException(s"Constructing constraints for $vars, but $atoms contain additional variable $v")
     }
     logger.debug(s"Classes of $atoms: ${allClasses.mkString(",")}")
-    val usage: VarUsageByLabel = allClasses.zip(Stream.continually(VarUnused)).toMap
+    val usage: VarUsageByLabel = allClasses.zip(LazyList.continually(VarUnused)).toMap
     val ensuredDiseqs = atoms.filter(!_.isEquality).map{
       case PureAtom(l, r, _) => DiseqConstraint(Set(classOf(l), classOf(r)))
     }

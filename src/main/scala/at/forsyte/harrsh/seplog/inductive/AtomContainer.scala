@@ -4,17 +4,17 @@ import at.forsyte.harrsh.main.HarrshLogging
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Renaming, Var}
 import at.forsyte.harrsh.seplog.Var._
 
-import scala.collection.SortedSet
+import scala.collection.immutable.SortedSet
 
 case class AtomContainer(pure : Seq[PureAtom], pointers: Seq[PointsTo], predCalls : Seq[PredCall]) extends HarrshLogging {
 
-  lazy val vars: Set[Var] = Set.empty ++ all.flatMap(_.getNonNullVars)
+  lazy val vars: SortedSet[Var] = SortedSet.empty[Var] ++ all.flatMap(_.getNonNullVars)
 
   lazy val freeVarSeq: Seq[FreeVar] = {
     Var.freeNonNullVars(vars).toSeq.sorted
   }
 
-  def all: Stream[SepLogAtom] = pure.toStream ++ pointers ++ predCalls
+  def all: LazyList[SepLogAtom] = pure.to(LazyList) ++ pointers ++ predCalls
 
   lazy val boundVars: SortedSet[BoundVar] = {
     SortedSet.empty(AtomContainer.boundVarOrdering) ++ Var.boundVars(vars)
@@ -72,7 +72,7 @@ case class AtomContainer(pure : Seq[PureAtom], pointers: Seq[PointsTo], predCall
     rename(Renaming.fromPairs(pairs), avoidDoubleCapture = true)
   }
 
-  def shiftBoundVars(vars : Set[BoundVar], shiftTo : Int) : AtomContainer = {
+  def shiftBoundVars(vars : SortedSet[BoundVar], shiftTo : Int) : AtomContainer = {
     assert(vars.subsetOf(boundVars))
     val pairs = vars.zipWithIndex.map(pair => (pair._1, BoundVar(pair._2 + shiftTo)))
     logger.trace(s"Will execute shifting to $shiftTo => using pairs " + pairs.mkString(", "))

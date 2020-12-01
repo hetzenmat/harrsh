@@ -123,9 +123,9 @@ case class RefinementInstance(sid: SidLike,
     computeRefinementFixedPoint(ReachedStates.empty, Transitions.empty, iteration = 1)
   }
 
-  private def allDefinedSources(reached : ReachedStates, calls : Seq[String]) : Stream[Seq[ha.State]] = {
+  private def allDefinedSources(reached : ReachedStates, calls : Seq[String]) : LazyList[Seq[ha.State]] = {
     if (calls.isEmpty) {
-      Stream(Seq())
+      LazyList(Seq())
     } else {
       for {
         tail <- allDefinedSources(reached, calls.tail)
@@ -141,17 +141,17 @@ case class RefinementInstance(sid: SidLike,
                                        callsToInstantiate : Seq[String],
                                        picked: Seq[ha.State],
                                        target: Option[ha.State],
-                                       iteration: Int) : Stream[Transition[ha.State]] = {
+                                       iteration: Int) : LazyList[Transition[ha.State]] = {
     val isGoal = mode == OnTheFly && head == pred
     if (callsToInstantiate.isEmpty) {
       val trg = target.get
       if (isGoal && ha.isFinal(trg)) {
         break.flag = true
       }
-      Stream(Transition(picked, body, None, head, target.get, iteration))
+      LazyList(Transition(picked, body, None, head, target.get, iteration))
     } else {
       for {
-        next <- (reached.reachedStatesForPred(callsToInstantiate.head) filter (s => (!skipSinksAsSources) || ha.isNonSink(s))).toStream
+        next <- (reached.reachedStatesForPred(callsToInstantiate.head) filter (s => (!skipSinksAsSources) || ha.isNonSink(s))).to(LazyList)
         if !break.flag
         extended = picked :+ next
         partialTarget <- ha.getPartialTargetsFor(extended, body)
@@ -166,7 +166,7 @@ case class RefinementInstance(sid: SidLike,
                                             reached : ReachedStates,
                                             previousTransitions : Transitions,
                                             break: FlagWrapper,
-                                            iteration: Int): Stream[Transition[ha.State]] = {
+                                            iteration: Int): LazyList[Transition[ha.State]] = {
     val previousCombinations = previousTransitions.combinations
     // In on-the-fly refinement, short-circuit when a final state for the target pred is reached
     val isGoal = mode == OnTheFly && head == pred
@@ -198,10 +198,10 @@ case class RefinementInstance(sid: SidLike,
 
   private def performSingleIteration(reached : ReachedStates,
                                      previousTransitions : Transitions,
-                                     iteration: Int): Stream[Transition[ha.State]] = {
+                                     iteration: Int): LazyList[Transition[ha.State]] = {
     var break = FlagWrapper(false)
     for {
-      pred <- sid.preds.toStream
+      pred <- sid.preds.to(LazyList)
       head = pred.head
       _ = logger.debug("Computing reachable states for predicate " + head)
       RuleBody(_, body) <- pred.rules

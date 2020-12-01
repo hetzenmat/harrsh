@@ -29,7 +29,7 @@ case class UnionProfile(taggedDecomps: Map[ContextDecomposition, ProfileIdTag], 
     val afterApplication = taggedDecomps.toSeq.flatMap{
       pair =>
         val closedDecomps = f(pair._1)
-        closedDecomps.zip(Stream.continually(pair._2))
+        closedDecomps.zip(LazyList.continually(pair._2))
     }
     UnionProfile(afterApplication, params)
   }
@@ -45,7 +45,7 @@ case class UnionProfile(taggedDecomps: Map[ContextDecomposition, ProfileIdTag], 
   }
 
   override def toString: String = {
-    val decompStr = taggedDecomps.map(pair => pair._1 + " --> " + pair._2).mkString("\n  ")
+    val decompStr = taggedDecomps.map(pair => s"${pair._1}  --> ${pair._2}").mkString("\n  ")
     s"""UnionProfile(
        |  params = ${params.toSeq.sorted.mkString(", ")}
        |  $decompStr
@@ -88,19 +88,19 @@ object UnionProfile {
       zipped forall (pair => pair._1.contains(pair._2))
     }
 
-    def singleTagStream: Stream[Seq[Int]] = {
+    def singleTagStream: LazyList[Seq[Int]] = {
       val found: mutable.Set[Seq[Int]] = mutable.Set.empty
       for {
-        tag <- underlying.toStream
+        tag <- underlying.to(LazyList)
         singleTag <- singleTagsOf(tag)
         if !found(singleTag)
         _ = found.update(singleTag, included = true)
       } yield singleTag
     }
 
-    private def singleTagsOf(tag: ProductIdTag): Stream[Seq[Int]] = {
+    private def singleTagsOf(tag: ProductIdTag): LazyList[Seq[Int]] = {
       if (tag.isEmpty) {
-        Stream(Seq.empty)
+        LazyList(Seq.empty)
       } else {
         for {
           tail <- singleTagsOf(tag.tail)
@@ -142,7 +142,7 @@ object UnionProfile {
 
   private def groupResults(unmergedCompositionResults: Seq[(ContextDecomposition, ProfileIdTag)]): Map[ContextDecomposition, ProfileIdTag] = {
     val grouped = unmergedCompositionResults.groupBy(_._1)
-    grouped.mapValues(_.map(_._2).reduce(_.union(_)))
+    grouped.view.mapValues(_.map(_._2).reduce(_.union(_))).toMap
   }
 
 }

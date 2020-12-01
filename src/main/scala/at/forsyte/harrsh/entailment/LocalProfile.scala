@@ -92,7 +92,7 @@ object LocalProfile extends HarrshLogging {
 
   private def allRootParamsUsed(decomp: ContextDecomposition, sid: RichSid): Boolean = {
     val rootsUsed = for {
-      ctx <- decomp.parts.toStream
+      ctx <- decomp.parts.to(LazyList)
       call <- ctx.calls
       usage = decomp.usageInfoOfCall(call)
       rootParam <- sid.roots.get(call.pred.head)
@@ -109,10 +109,10 @@ object LocalProfile extends HarrshLogging {
   private def hasNamesForUsedParams(decomp: ContextDecomposition, sid: RichSid): Boolean = {
     // Everything that's used has a name
     val enoughNamesByNodeAndParam = for {
-      ctx <- decomp.parts.toStream
+      ctx <- decomp.parts.to(LazyList)
       // TODO: Do we have to consider the root here?
       call <- ctx.calls + ctx.root
-      usageByVar = (call.subst.toSeq, decomp.usageInfoOfCall(call)).zipped
+      usageByVar =  call.subst.toSeq.lazyZip(decomp.usageInfoOfCall(call)) // Scala 2.12: (call.subst.toSeq, decomp.usageInfoOfCall(call)).zipped
       (substVars, usg) <- usageByVar
       res = !usg.isUsed || substVars.exists(!PlaceholderVar.isPlaceholder(_))
       _ = {

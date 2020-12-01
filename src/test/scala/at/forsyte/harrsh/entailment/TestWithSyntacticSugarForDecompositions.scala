@@ -1,7 +1,6 @@
 package at.forsyte.harrsh.entailment
 
 import at.forsyte.harrsh.seplog.Var
-import at.forsyte.harrsh.seplog.inductive.{PureAtom, SidLike}
 import at.forsyte.harrsh.{Implicits, TestValues}
 import at.forsyte.harrsh.test.HarrshTableTest
 

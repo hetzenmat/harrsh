@@ -58,7 +58,7 @@ class ReducedHeapEquivalenceTest extends HarrshTableTest with Implicits {
 
     forAll(inputs) {
       (fst: SymbolicHeap, snd: SymbolicHeap, expectedResult: Boolean) =>
-        Given(fst + ", " + snd)
+        Given(s"$fst, $snd")
         Then("Equivalence should " + (if (expectedResult) "HOLD" else "NOT HOLD"))
         ReducedHeapEquivalence(fst, snd) shouldBe expectedResult
     }

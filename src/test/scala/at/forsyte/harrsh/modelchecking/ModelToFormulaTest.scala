@@ -1,7 +1,8 @@
 package at.forsyte.harrsh.modelchecking
 
+import at.forsyte.harrsh.pure.EqualityUtils
 import at.forsyte.harrsh.seplog.{FreeVar, Var}
-import at.forsyte.harrsh.seplog.inductive.SymbolicHeap
+import at.forsyte.harrsh.seplog.inductive.{AtomContainer, SymbolicHeap}
 import at.forsyte.harrsh.test.HarrshTableTest
 import at.forsyte.harrsh.{Implicits, TestValues}
 
@@ -41,7 +42,14 @@ class ModelToFormulaTest extends HarrshTableTest with Implicits with TestValues 
         val res = ModelToFormula(Model(stack.map(p => (p._1.asInstanceOf[Var], p._2)), heap))
         info("Model-to-formula conversion result " + res + " should equal " + expectedRes)
         // Mapping onto the atoms to be agnostic about free-variable order
-        res.atoms shouldEqual expectedRes.atoms
+        val AtomContainer(resPure, resPointers, resPredCalls) = res.atoms
+        val AtomContainer(expPure, expPointers, expPredCalls) = expectedRes.atoms
+
+        resPure.map(EqualityUtils.orderedAtom).toSet shouldEqual expPure.map(EqualityUtils.orderedAtom).toSet
+        resPointers.toSet shouldEqual expPointers.toSet
+        resPredCalls.toSet shouldEqual expPredCalls.toSet
+
+        // res.atoms shouldEqual expectedRes.atoms
     }
   }
 

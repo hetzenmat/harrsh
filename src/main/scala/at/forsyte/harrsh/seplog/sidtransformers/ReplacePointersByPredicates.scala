@@ -16,7 +16,7 @@ object ReplacePointersByPredicates extends HarrshLogging {
     val ptoByArity: Map[Int, Seq[PointsTo]] = (lhs.pointers ++ rhs.pointers).groupBy(_.to.length)
     if (ptoByArity.nonEmpty) {
       val newPreds = ptoByArity.keySet map makePtoPred
-      val newRoots: Map[String, FreeVar] = ptoByArity.keySet.map(auxPred).zip(Stream.continually(Var.defaultFV(1))).toMap
+      val newRoots: Map[String, FreeVar] = ptoByArity.keySet.map(auxPred).zip(LazyList.continually(Var.defaultFV(1))).toMap
       val newSid = RichSid(
         rootedSid.startPred,
         rootedSid.preds ++ newPreds,

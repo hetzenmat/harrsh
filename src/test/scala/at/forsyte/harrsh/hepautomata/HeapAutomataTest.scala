@@ -152,7 +152,7 @@ class HeapAutomataTest extends HarrshTableTest with Implicits with TestValues {
     forAll(emptinessChecks) {
       (automaton, sid, result) =>
 
-        Given(sid + "\n and the automaton '" + automaton.description)
+        Given(sid.toString + "\n and the automaton '" + automaton.description)
         Then("The emptiness check should return " + result)
 
         info("Testing emptiness for refinement of " + sid + "\n with the automaton '" + automaton.description + "'; expected result: " + result)

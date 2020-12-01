@@ -3,30 +3,32 @@ name := "harrsh"
 
 version := "1.0"
 
-scalaVersion := "2.12.2"
+scalaVersion := "2.13.4"
 
-scalacOptions ++= Seq("-Xmax-classfile-name","78")
+// scalacOptions ++= Seq("-Xmax-classfile-name","78")
 
-libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6"
-libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.0.6"
+libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
+libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.3.0"
 
 libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3"
-libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
 
-libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.13.4" % "test"
-libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.1"
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.15.1" % "test"
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.0"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.3" % "test"
 
-libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.12"
+libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.3.2"
 
 libraryDependencies += "org.antlr" % "antlr4-runtime" % "4.7"
 
-test in assembly := {}
+scalacOptions ++= Seq("-deprecation", "-feature")
 
-import sbtassembly.AssemblyPlugin.defaultShellScript
-assemblyOption in assembly := (assemblyOption in assembly).value.copy(prependShellScript = Some(defaultShellScript))
-assemblyJarName in assembly := s"${name.value}"
-mainClass in assembly := Some("at.forsyte.harrsh.main.Harrsh")
+//test in assembly := {}
+
+//import sbtassembly.AssemblyPlugin.defaultShellScript
+//assemblyOption in assembly := (assemblyOption in assembly).value.copy(prependShellScript = Some(defaultShellScript))
+//assemblyJarName in assembly := s"${name.value}"
+//ainClass in assembly := Some("at.forsyte.harrsh.main.Harrsh")
 //mainClass in assembly := Some("at.forsyte.harrsh.main.SlCompMode")
 
-enablePlugins(JmhPlugin)
+//enablePlugins(JmhPlugin)

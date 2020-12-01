@@ -5,6 +5,8 @@ import at.forsyte.harrsh.seplog.Var.Naming
 import at.forsyte.harrsh.util.ToLatex
 import at.forsyte.harrsh.util.ToLatex._
 
+import scala.collection.immutable.SortedSet
+
 /**
   * Created by jens on 3/14/17.
   */
@@ -20,7 +22,7 @@ case class PointsTo(from : Var, to : Seq[Var]) extends SepLogAtom {
 
   override def renameVars(f : Renaming) : PointsTo = PointsTo(from.rename(f), to map (_.rename(f)))
 
-  override def getVars : Set[Var] = (from +: to).toSet
+  override def getVars : SortedSet[Var] =  SortedSet[Var](from) ++ to
 
   override def toStringWithVarNames(names: Naming): String = names(from) + " \u21a6 " + (if (to.tail.isEmpty) names(to.head).toString else to.map(names).mkString("(", ", ", ")"))
 }

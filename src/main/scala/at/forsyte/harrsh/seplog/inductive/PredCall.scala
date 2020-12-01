@@ -5,6 +5,8 @@ import at.forsyte.harrsh.seplog.{NullConst, Renaming, Var}
 import at.forsyte.harrsh.util.ToLatex
 import at.forsyte.harrsh.util.ToLatex._
 
+import scala.collection.immutable.SortedSet
+
 /**
   * Created by jens on 2/28/17.
   */
@@ -25,7 +27,7 @@ case class PredCall(name : String, args : Seq[Var]) extends SepLogAtom {
 
   override def renameVars(f: Renaming): PredCall = copy(args = args map (_.rename(f)))
 
-  override def getVars : Set[Var] = args.toSet
+  override def getVars : SortedSet[Var] = SortedSet.empty[Var] ++ args
 }
 
 object PredCall {

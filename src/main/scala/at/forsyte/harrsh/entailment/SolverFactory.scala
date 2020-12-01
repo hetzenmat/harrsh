@@ -66,13 +66,13 @@ object SolverFactory extends HarrshLogging {
   }
 
   private def topLevelSolverFrom(solver: TopLevelSolver, exportToLatex: Boolean): SolverStrategy[FixedPoint] = {
-    SolverStrategy.fromFunction { case (ei: EntailmentInstance, fp: FixedPoint) =>
+    SolverStrategy.fromFunction({ (ei: EntailmentInstance, fp: FixedPoint) =>
 //      val split = splitBasedOnInterface(ei)
 //      logger.warn(s"We could split $ei into\n${split.mkString("\n")}")
 
       val isValid = solver.checkValidity(ei, fp, exportToLatex)
       if (isValid) Correct else Incorrect
-    }
+    })
   }
 
   private def patternMatchingTactic(level: Int): SolverStrategy[Unit] = {
@@ -109,7 +109,7 @@ object SolverFactory extends HarrshLogging {
     val rhs = ei.rhs.topLevelConstraint
     val rhsLength = rhs.calls.length
     val rhsPreds = ei.rhs.sid.predIdents
-    Stream(
+    LazyList(
       lhsLength >= rhsLength,
       lhsLength == rhsLength || ei.rhs.sid.empClosedNonProgressRules.nonEmpty,
       lhs.calls.forall(rhsPreds contains _.name)) forall (b => b)

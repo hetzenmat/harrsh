@@ -8,7 +8,7 @@ sealed trait HarrshCache[From,To] extends HarrshLogging {
 
   val description: String
 
-  def reset()
+  def reset(): Unit
 
   def apply(from: From): To
 

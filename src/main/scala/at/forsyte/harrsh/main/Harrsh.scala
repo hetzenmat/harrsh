@@ -128,7 +128,8 @@ object Harrsh extends Implicits {
 
     case TacasArtifact =>
       println(s"TACAS artifact: Will run experiments specified in '$file'")
-      EntailmentBenchmarking.runJmhBenchmarskForHarrsh(file)
+      println("TODO: Fix Benchmarks")
+      //EntailmentBenchmarking.runJmhBenchmarskForHarrsh(file)
 
     case ConvertEntailmentBatch =>
       val wrapper = (format: String, conv: EntailmentFormatConverter) => {

@@ -134,7 +134,7 @@ object ToSymbolicHeapOverBtwSid extends HarrshLogging {
     val droppedFreeVars = sh.freeVars.filterNot(remainder.freeVars.contains).toSet
     // ...leading to the following renaming of free/bound vars to the new uninterrupted sequence of free vars:
     val freeVarNamesForRemainder = Var.freshFreeVars(Set.empty, remainder.freeVars.size + sharedBoundVars.size)
-    val renamingMap: Map[Var,Var] = (remainder.freeVars ++ sharedBoundVars, freeVarNamesForRemainder).zipped.toMap
+    val renamingMap: Map[Var,Var] = (remainder.freeVars ++ sharedBoundVars).lazyZip(freeVarNamesForRemainder).toMap
     val renaming = Renaming.fromMap(renamingMap)
     val renamedRemainder = remainder.rename(renaming, overrideFreeVars = Some(freeVarNamesForRemainder))
 

@@ -45,9 +45,9 @@ object RenamedSourceStates extends HarrshLogging {
   }
 
   private def renamedSourceStates(sid: RichSid, src: Seq[EntailmentProfile], lab: SymbolicHeap): Seq[Option[EntailmentProfile]] = {
-    val instantiatedETs = (src, lab.predCalls).zipped.map(renameProfileForCall(sid, _, _))
+    val instantiatedETs = src.lazyZip(lab.predCalls).map(renameProfileForCall(sid, _, _))
     for {
-      (src, renamed, call) <- (src, instantiatedETs, lab.predCalls).zipped
+      (src, renamed, call) <- src.lazyZip(instantiatedETs).lazyZip(lab.predCalls)
     } {
       logger.debug(s"Process pred call $call: Instantiated source state $src to $renamed")
     }

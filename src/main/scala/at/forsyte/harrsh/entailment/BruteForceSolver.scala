@@ -12,7 +12,7 @@ object BruteForceSolver extends TopLevelSolver {
     val exporter = if (exportToLatex) new FullTopLevelLatexExporter(entailmentInstance.rhs.sid, lhsConstraint, rhsConstraint, profileForLhsPureConstraints, renamedProfiles) else NoopLatexExporter
     val combinedProfiles = bruteForceCombinations(sid, lhsConstraint, profileForLhsPureConstraints, renamedProfiles, exporter).toSet
     exporter.writeToLatexFile()
-    logger.debug(combinedProfiles.size + " combined profile(s):\n" + combinedProfiles.mkString("\n"))
+    logger.debug(combinedProfiles.size.toString + " combined profile(s):\n" + combinedProfiles.mkString("\n"))
     checkIfProfilesAreFinal(combinedProfiles, sid, lhsConstraint, rhsConstraint)
   }
 

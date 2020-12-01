@@ -151,13 +151,17 @@ class SymbolicHeapTest extends HarrshTest with Implicits with TestValues {
     val tllBase = "x1 ↦ (null, null, x3) : {x1 ≈ x2, x1 ≉ x3}"
     val tllRec = "∃y1 ∃y2 ∃y3 . x1 ↦ (y1, y2, null) * tll(y1,x2,y3) * tll(y2,y3,x3) : {x1 ≉ x3, x2 ≉ x3}"
     val tllRec_2Base = "∃y1 ∃y2 ∃y3 . x1 ↦ (y1, y2, null) * y1 ↦ (null, null, y3) * y2 ↦ (null, null, x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≈ x2, y1 ≉ y3, y2 ≈ y3, y2 ≉ x3}"
-    val tllRec_RecBase = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 . x1 ↦ (y1, y2, null) * y1 ↦ (y6, y4, null) * y2 ↦ (null, null, x3) * tll(y6,x2,y5) * tll(y4,y5,y3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≈ y3, y2 ≉ x3}"
+    // MH Replaced val tllRec_RecBase = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 . x1 ↦ (y1, y2, null) * y1 ↦ (y6, y4, null) * y2 ↦ (null, null, x3) * tll(y6,x2,y5) * tll(y4,y5,y3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≈ y3, y2 ≉ x3}"
+    val tllRec_RecBase = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 . x1 ↦ (y1, y2, null) * y1 ↦ (y4, y5, null) * y2 ↦ (null, null, x3) * tll(y4,x2,y6) * tll(y5,y6,y3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≈ y3, y2 ≉ x3}"
     //val tllRec_BaseRec = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 . x1 ↦ (y1, y2, null) * y1 ↦ (null, null, y3) * y2 ↦ (y6, y4, null) * tll(y6,y3,y5) * tll(y4,y5,x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≈ x2, y1 ≉ y3, y2 ≉ x3, y3 ≉ x3}"
-    val tllRec_BaseRec = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 . x1 ↦ (y1, y2, null) * y1 ↦ (null, null, y3) * y2 ↦ (y5, y4, null) * tll(y5,y3,y6) * tll(y4,y6,x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≈ x2, y1 ≉ y3, y2 ≉ x3, y3 ≉ x3}"
+    // MH Replaced val tllRec_BaseRec = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 . x1 ↦ (y1, y2, null) * y1 ↦ (null, null, y3) * y2 ↦ (y5, y4, null) * tll(y5,y3,y6) * tll(y4,y6,x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≈ x2, y1 ≉ y3, y2 ≉ x3, y3 ≉ x3}"
+    val tllRec_BaseRec = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 . x1 ↦ (y1, y2, null) * y1 ↦ (null, null, y3) * y2 ↦ (y4, y5, null) * tll(y4,y3,y6) * tll(y5,y6,x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≈ x2, y1 ≉ y3, y2 ≉ x3, y3 ≉ x3}"
     //val tllRec_2Rec = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 ∃y7 ∃y8 ∃y9 . x1 ↦ (y1, y2, null) * y1 ↦ (y6, y4, null) * y2 ↦ (y9, y7, null) * tll(y6,x2,y5) * tll(y4,y5,y3) * tll(y9,y3,y8) * tll(y7,y8,x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≉ x3, y3 ≉ x3}"
-    val tllRec_2Rec = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 ∃y7 ∃y8 ∃y9 . x1 ↦ (y1, y2, null) * y1 ↦ (y6, y4, null) * y2 ↦ (y8, y7, null) * tll(y6,x2,y5) * tll(y4,y5,y3) * tll(y8,y3,y9) * tll(y7,y9,x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≉ x3, y3 ≉ x3}"
+    // MH Replaced val tllRec_2Rec = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 ∃y7 ∃y8 ∃y9 . x1 ↦ (y1, y2, null) * y1 ↦ (y6, y4, null) * y2 ↦ (y8, y7, null) * tll(y6,x2,y5) * tll(y4,y5,y3) * tll(y8,y3,y9) * tll(y7,y9,x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≉ x3, y3 ≉ x3}"
+    val tllRec_2Rec = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 ∃y7 ∃y8 ∃y9 . x1 ↦ (y1, y2, null) * y1 ↦ (y4, y5, null) * y2 ↦ (y7, y8, null) * tll(y4,x2,y6) * tll(y5,y6,y3) * tll(y7,y3,y9) * tll(y8,y9,x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≉ x3, y3 ≉ x3}"
     //val tllRec_2Rec_4Base = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 ∃y7 ∃y8 ∃y9 . x1 ↦ (y1, y2, null) * y1 ↦ (y6, y4, null) * y2 ↦ (y9, y7, null) * y6 ↦ (null, null, y5) * y4 ↦ (null, null, y3) * y9 ↦ (null, null, y8) * y7 ↦ (null, null, x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≉ x3, y3 ≉ x3, y6 ≈ x2, y6 ≉ y5, y4 ≈ y5, y4 ≉ y3, y9 ≈ y3, y9 ≉ y8, y7 ≈ y8, y7 ≉ x3}"
-    val tllRec_2Rec_4Base = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 ∃y7 ∃y8 ∃y9 . x1 ↦ (y1, y2, null) * y1 ↦ (y6, y4, null) * y2 ↦ (y8, y7, null) * y6 ↦ (null, null, y5) * y4 ↦ (null, null, y3) * y8 ↦ (null, null, y9) * y7 ↦ (null, null, x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≉ x3, y3 ≉ x3, y6 ≈ x2, y6 ≉ y5, y4 ≈ y5, y4 ≉ y3, y8 ≈ y3, y8 ≉ y9, y7 ≈ y9, y7 ≉ x3}"
+    // MH Replaced val tllRec_2Rec_4Base = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 ∃y7 ∃y8 ∃y9 . x1 ↦ (y1, y2, null) * y1 ↦ (y6, y4, null) * y2 ↦ (y8, y7, null) * y6 ↦ (null, null, y5) * y4 ↦ (null, null, y3) * y8 ↦ (null, null, y9) * y7 ↦ (null, null, x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≉ x3, y3 ≉ x3, y6 ≈ x2, y6 ≉ y5, y4 ≈ y5, y4 ≉ y3, y8 ≈ y3, y8 ≉ y9, y7 ≈ y9, y7 ≉ x3}"
+    val tllRec_2Rec_4Base = "∃y1 ∃y2 ∃y3 ∃y4 ∃y5 ∃y6 ∃y7 ∃y8 ∃y9 . x1 ↦ (y1, y2, null) * y1 ↦ (y4, y5, null) * y2 ↦ (y7, y8, null) * y4 ↦ (null, null, y6) * y5 ↦ (null, null, y3) * y7 ↦ (null, null, y9) * y8 ↦ (null, null, x3) : {x1 ≉ x3, x2 ≉ x3, y1 ≉ y3, x2 ≉ y3, y2 ≉ x3, y3 ≉ x3, y4 ≈ x2, y4 ≉ y6, y5 ≈ y6, y5 ≉ y3, y7 ≈ y3, y7 ≉ y9, y8 ≈ y9, y8 ≉ x3}"
 
     val testInputs : Seq[(String,Seq[String],String)] = Seq(
       ("sll(x1,x2)", Seq("emp : {x1 = x2}"), "emp : {x1 = x2}"),
@@ -181,11 +185,17 @@ class SymbolicHeapTest extends HarrshTest with Implicits with TestValues {
     for {
       (input,replacements,output) <- testInputs
     } {
+      // TODO
+      info("test " + (input, replacements, output))
       val unfoldBy : Seq[SymbolicHeap] = replacements map (_.parse)
+      info("unfoldBy " + unfoldBy)
       info("Testing equality " + input + unfoldBy.mkString("[",", ","]") + " == " + output)
-      input.parse.replaceCalls(unfoldBy) shouldEqual output.parse
+
+      val replace = input.parse.replaceCalls(unfoldBy)
+      info("replace " + replace)
+      info("output :" + output)
+      info("output parsed:" + output.parse)
+      replace shouldEqual output.parse
     }
-
   }
-
 }

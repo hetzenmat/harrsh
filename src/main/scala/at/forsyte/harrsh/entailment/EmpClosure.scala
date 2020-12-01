@@ -19,7 +19,7 @@ case class EmpClosure(sid: RichSid) extends HarrshLogging {
     val empClosureByCtx: Seq[Set[(EntailmentContext, Set[PureAtom])]] = decomp.parts.toSeq map empClosureOfContext
     for {
       closureOption: Seq[(EntailmentContext, Set[PureAtom])] <- Combinators.choices(empClosureByCtx)
-      _ = logger.debug(s"Considering emp-closure for $decomp:\nWill update contexts as follows:\n${closureOption.map(p => p._1 + " with new pure constraints " + p._2).mkString(",\n")}")
+      _ = logger.debug(s"Considering emp-closure for $decomp:\nWill update contexts as follows:\n${closureOption.map(p => s"${p._1} with new pure constraints ${p._2}").mkString(",\n")}")
       (newCtxs, pureConstraintsByCtx) = closureOption.unzip
       newPureAtoms = pureConstraintsByCtx.flatten
       pureAtomUpdate = SpeculativeUpdate(newPureAtoms, decomp.constraints.classes)

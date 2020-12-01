@@ -11,6 +11,6 @@ trait UnicodeQuantifierPrefix extends QuantifierPrefix {
 
   override def parseQuantifiers : Parser[Seq[String]] = rep(parseQuantifier) <~ opt(".")
 
-  private def parseQuantifier : Parser[String] = """\u2203[a-zA-Z_][a-zA-Z0-9_']*""".r map (_.tail) //"\u2203" ~> ident
+  private def parseQuantifier : Parser[String] = """∃[a-zA-Z_][a-zA-Z0-9_']*""".r map (_.tail) //"\u2203" ~> ident
 
 }

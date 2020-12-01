@@ -42,7 +42,7 @@ class EstablishmentAutomatonTest extends HarrshTableTest with TestValues {
     forAll(transitions) {
       (src: Seq[est.State], sh: SymbolicHeap, established: Boolean) =>
         Given(src.mkString(", ") + ", " + sh)
-        Then(sh + " should be " + (if (established) "ESTABLISHED" else "UNESTABLISHED"))
+        Then(sh.toString + " should be " + (if (established) "ESTABLISHED" else "UNESTABLISHED"))
         val targets = est.getTargetsFor(src, sh)
         targets.size should be (1)
         info("Target state is: " + targets.head)

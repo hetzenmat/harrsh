@@ -139,7 +139,7 @@ object ToSlcompConverter extends EntailmentFormatConverter {
     ) ++ statusTerm ++ Seq(App("set-info", ":version", today()))
   }
 
-  private def today(): String = '"' + StringUtils.today() + '"' //"\"2019-02-20\""
+  private def today(): String =  "\"" + StringUtils.today() + "\"" //"\"2019-02-20\""
 
   private def funDefs(arity: Int, sid: SidLike): SExpr = App(
     "define-funs-rec", funDecls(arity, sid), funBodies(arity, sid)

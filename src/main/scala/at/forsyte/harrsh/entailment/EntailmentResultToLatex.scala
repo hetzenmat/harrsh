@@ -7,6 +7,7 @@ import at.forsyte.harrsh.seplog.inductive.{Predicate, RichSid, Sid}
 import at.forsyte.harrsh.util.IOUtils
 import at.forsyte.harrsh.util.ToLatex._
 
+import scala.collection.IterableOnce.iterableOnceExtensionMethods
 import scala.collection.mutable
 
 object EntailmentResultToLatex {
@@ -82,14 +83,14 @@ object EntailmentResultToLatex {
 
   private def indent(s : String) = "  " + s
 
-  private def indent(ss : Stream[String]): Stream[String] = ss map indent
+  private def indent(ss : LazyList[String]): LazyList[String] = ss map indent
 
-  def inTikzPic(lines: Stream[String], style: Option[String] = None): Stream[String] = {
-    val styleString = style.map('[' + _ + ']').getOrElse("")
-    Stream(s"\\begin{tikzpicture}$styleString") ++ lines ++ Stream("\\end{tikzpicture}")
+  def inTikzPic(lines: LazyList[String], style: Option[String] = None): LazyList[String] = {
+    val styleString = style.map(i => s"[$i]").getOrElse("")
+    LazyList(s"\\begin{tikzpicture}$styleString") ++ lines ++ LazyList("\\end{tikzpicture}")
   }
 
-  private def positioning(prefix: String, dir: String, currId: Int) = {
+  private def positioning(prefix: String, dir: String, currId: Int): String = {
     if (currId > 0) {
       val anchor = if (dir == "below") ".west, anchor=west" else ""
       val distance = if (dir == "below") "12" else "2"
@@ -99,17 +100,17 @@ object EntailmentResultToLatex {
 
   object decompositionToLatexLines {
 
-    def apply(decomp: ContextDecomposition, nodeId: String, position: String, isFinal: Boolean): Stream[String] = {
+    def apply(decomp: ContextDecomposition, nodeId: String, position: String, isFinal: Boolean): LazyList[String] = {
       val partsWithNodeIds = decomp.parts.toSeq.zipWithIndex map (pair => (pair._1, "c"+pair._2, positioning("c", "right", pair._2)))
       val cls = if (isFinal) FinalDecompStyleClass else DecompStyleClass
-      val partsTikz = partsWithNodeIds.toStream flatMap (pair => contextToLatexLines(pair._1, pair._2, pair._3, decomp.constraints.usage))
+      val partsTikz = partsWithNodeIds.flatMap(pair => contextToLatexLines(pair._1, pair._2, pair._3, decomp.constraints.usage)).to(LazyList)
       val constraintsTikz = constraintsToLatexLines(decomp.constraints, positioning("c", "right", partsWithNodeIds.size))
-      Stream(s"\\node[$cls,$position] ($nodeId) {") ++ indent(inTikzPic(partsTikz ++ constraintsTikz)) ++ Stream("};")
+      LazyList(s"\\node[$cls,$position] ($nodeId) {") ++ indent(inTikzPic(partsTikz ++ constraintsTikz)) ++ LazyList("};")
     }
 
-    def contextToLatexLines(ctx: EntailmentContext, ctxId: String, position: String, usageInfo: VarUsageByLabel): Stream[String] = {
+    def contextToLatexLines(ctx: EntailmentContext, ctxId: String, position: String, usageInfo: VarUsageByLabel): LazyList[String] = {
       val text = (ctx.root +: ctx.calls.toSeq).map(nodeLabelToLatex(_, usageInfo)).mkString(", ")
-      Stream(s"\\node[$ContextStyleClass, $position] ($ctxId) {$text};")
+      LazyList(s"\\node[$ContextStyleClass, $position] ($ctxId) {$text};")
     }
 
     def diseqToLatex(constraint: VarConstraints.DiseqConstraint): String = {
@@ -121,14 +122,14 @@ object EntailmentResultToLatex {
       Var.indexedVarToLatex(eq._1) + " = " + Var.indexedVarToLatex(eq._2)
     }
 
-    private def constraintsToLatexLines(constraints: VarConstraints, position: String): Stream[String] = {
+    private def constraintsToLatexLines(constraints: VarConstraints, position: String): LazyList[String] = {
       val positions = Seq(position, positioning("constraints", "right", 1))
       val ensuredConstraints = (EnsuredStyleClass, constraints.ensuredDiseqs.map(diseqToLatex))
       val missingConstraints = (MissingStyleClass,
         constraints.speculativeDiseqs.map(diseqToLatex)
           ++ constraints.speculativeEqs.map(speculativeEqToLatex)
           ++ constraints.rewrittenSpeculation.map(_.toLatex))
-      val constraintLists = Stream(ensuredConstraints, missingConstraints).filterNot(_._2.isEmpty)
+      val constraintLists = LazyList(ensuredConstraints, missingConstraints).filterNot(_._2.isEmpty)
       val constraintNodes = constraintLists.zipWithIndex.zip(positions).map{
         case (((style, list), index), pos) => (list.mkString("$", " \\wedge ", "$"), style, pos, index)
       }
@@ -149,10 +150,10 @@ object EntailmentResultToLatex {
       }
 
       val (pred, subst) = (nodeLabel.pred, nodeLabel.subst)
-      val paramLabels = (pred.params, subst.toSeq).zipped.map {
+      val paramLabels = pred.params.lazyZip(subst.toSeq).map {
         case (from, to) => annotateWithUsageInfo(to)(Var.indexedVarsToLatex(to))
       }
-      '$' + "\\mathtt{" + pred.headToLatex + "}" + paramLabels.mkString("(", ", ", ")") + '$'
+      "$\\mathtt{" + pred.headToLatex + "}" + paramLabels.mkString("(", ", ", ")") + '$'
     }
   }
 
@@ -181,7 +182,7 @@ object EntailmentResultToLatex {
       val localStr = entailmentCheckerResultToLatex.stateToLatex(localState).mkString("\n").drop(5)
       val srcStrs = (srcStates map (s => entailmentCheckerResultToLatex.stateToLatex(s).mkString("\n"))).mkString("\n\n")
       val srcStrInItemize = if (srcStrs.nonEmpty) s"\\begin{itemize}$srcStrs\\end{itemize}" else srcStrs
-      val bodyStr = '$' + body.toLatex + '$'
+      val bodyStr = "$" + body.toLatex + "$"
       val trgStr = entailmentCheckerResultToLatex.stateToLatex(trgState).mkString("\n").drop(5)
       s"""\\begin{itemize}
          |  \\item Computed in iteration: $iteration
@@ -202,15 +203,15 @@ object EntailmentResultToLatex {
     }
 
     def statesToLatex(statesByPred: Map[String, Set[EntailmentProfile]]): String = {
-      val lines = Stream("\\begin{itemize}") ++ statesByPred.toStream.flatMap(pair => Stream("\\item") ++ predToLatex(pair._1, pair._2)).map(indent) ++ Stream("\\end{itemize}")
+      val lines = LazyList("\\begin{itemize}") ++ statesByPred.flatMap(pair => LazyList("\\item") ++ predToLatex(pair._1, pair._2)).map(indent) ++ LazyList("\\end{itemize}")
       lines.mkString("\n")
     }
 
-    def predToLatex(pred: String, states: Set[EntailmentProfile]): Stream[String] = {
-      Stream(s"Reachable profiles for \\texttt{${Predicate.predicateHeadToLatex(pred)}}:", "\\begin{itemize}") ++ states.toStream.flatMap(s => stateToLatex(s)).map(indent) ++ Stream("\\end{itemize}")
+    def predToLatex(pred: String, states: Set[EntailmentProfile]): LazyList[String] = {
+      LazyList(s"Reachable profiles for \\texttt{${Predicate.predicateHeadToLatex(pred)}}:", "\\begin{itemize}") ++ states.flatMap(s => stateToLatex(s)).map(indent) ++ LazyList("\\end{itemize}")
     }
 
-    def stateToLatex(state: EntailmentProfile, maybeFinalityTest: Option[ContextDecomposition => Boolean] = None, maxNumDecomp: Option[Int] = None): Stream[String] = {
+    def stateToLatex(state: EntailmentProfile, maybeFinalityTest: Option[ContextDecomposition => Boolean] = None, maxNumDecomp: Option[Int] = None): LazyList[String] = {
       val header = s"\\item Profile with free variables ${state.params.toSeq.sorted.map(Var.indexedVarToLatex).mkString("$\\langle ", ", ", "\\rangle$")}:"
 
       val isFinal: ContextDecomposition => Boolean = maybeFinalityTest.getOrElse((d:ContextDecomposition) => false)
@@ -233,9 +234,9 @@ object EntailmentResultToLatex {
 
       val decompsWithNodeNames = prefix.zipWithIndex.map(pair => (pair._1, "d" + pair._2, positioning("d", "below", pair._2)))
       val decompLines = decompsWithNodeNames.flatMap(pair => decompositionToLatexLines(pair._1._1, pair._2, pair._3, pair._1._2))
-      val nodesToFit = decompsWithNodeNames.map(_._2).map('(' + _ + ')').mkString("")
-      val allLines = decompLines.toStream ++ Stream("\\begin{scope}[on background layer]", s"  \\node[profile,fit=$nodesToFit] {};", "\\end{scope}")
-      Stream(header, "", suffix, "") ++ indent(inTikzPic(allLines))
+      val nodesToFit = decompsWithNodeNames.map(_._2).map("(" + _ + ")").mkString
+      val allLines = decompLines ++ LazyList("\\begin{scope}[on background layer]", s"  \\node[profile,fit=$nodesToFit] {};", "\\end{scope}")
+      LazyList(header, "", suffix, "") ++ indent(inTikzPic(allLines.to(LazyList)))
     }
 
   }

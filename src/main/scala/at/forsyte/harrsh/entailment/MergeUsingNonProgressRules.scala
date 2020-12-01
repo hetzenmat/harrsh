@@ -38,15 +38,15 @@ object MergeUsingNonProgressRules extends HarrshLogging {
     decomp +: applyAllPossibleRulesInMerge(decomp, rules).flatMap(mergeWithZeroOrMoreRuleApplications(_, rules, sid))
   }
 
-  private def applyAllPossibleRulesInMerge(decomp: ContextDecomposition, rules: Set[(Predicate, RuleBody)]): Stream[ContextDecomposition] = {
-    rules.toStream.flatMap(rule => applyRuleInMerge(decomp, rule._2, rule._1))
+  private def applyAllPossibleRulesInMerge(decomp: ContextDecomposition, rules: Set[(Predicate, RuleBody)]): LazyList[ContextDecomposition] = {
+    rules.flatMap(rule => applyRuleInMerge(decomp, rule._2, rule._1)).to(LazyList)
   }
 
   private def applyRuleInMerge(decomp: ContextDecomposition, rule: RuleBody, pred: Predicate): Option[ContextDecomposition] = {
     assert(!rule.hasPointer)
     val decompBoundVars = decomp.boundVars.map(_.asInstanceOf[BoundVar])
     val shiftedRule = if (decompBoundVars.nonEmpty) {
-      val shiftedBody = SymbolicHeap(rule.body.atoms.shiftBoundVars(rule.body.boundVars.toSet, decompBoundVars.max.index + 1), rule.body.freeVars)
+      val shiftedBody = SymbolicHeap(rule.body.atoms.shiftBoundVars(rule.body.boundVars, decompBoundVars.max.index + 1), rule.body.freeVars)
       logger.debug(s"Shifted rule body from ${rule.body} to $shiftedBody to avoid clashing bound vars")
       rule.copy(body = shiftedBody)
     } else {
@@ -60,7 +60,7 @@ object MergeUsingNonProgressRules extends HarrshLogging {
     } else {
       // FIXME: More efficient choice of possible pairings for matching (don't brute force over all seqs)
       val possibleMatchings = Combinators.allSeqsWithoutRepetitionOfLength(callsInRule.length, roots)
-      possibleMatchings.toStream.flatMap(tryMergeGivenRoots(decomp, shiftedRule, pred, _)).headOption
+      possibleMatchings.flatMap(tryMergeGivenRoots(decomp, shiftedRule, pred, _)).headOption
     }
   }
 
@@ -76,7 +76,7 @@ object MergeUsingNonProgressRules extends HarrshLogging {
   }
 
   private def predicatesMatch(calls: Seq[PredCall], labels: Seq[ContextPredCall]): Boolean = {
-    (calls, labels).zipped forall {
+    calls.lazyZip(labels).forall {
       case (call, label) => call.name == label.pred.head
     }
   }
@@ -92,14 +92,14 @@ object MergeUsingNonProgressRules extends HarrshLogging {
         None
       case None =>
         logger.debug(s"Will put contexts rooted in ${rootsToMerge.mkString(",")} under new root node labeled by ${pred.head}")
-        mergeRoots(decomp, rootsToMerge, rule, pred, assignmentsByVar.mapValues(_.head))
+        mergeRoots(decomp, rootsToMerge, rule, pred, assignmentsByVar.view.mapValues(_.head).toMap)
     }
   }
 
   private def varAssignmentFromMatching(matched: Seq[(PredCall, ContextPredCall)]) = {
     val varAssignmentSeq = for {
       (call, root) <- matched
-      (arg, varLabel) <- (call.args, root.subst.toSeq).zipped
+      (arg, varLabel) <- call.args.lazyZip(root.subst.toSeq)
     } yield (arg, varLabel)
     val assignmentsByVar: Map[Var, Set[Set[Var]]] = varAssignmentSeq.groupBy(_._1).map {
       case (k, vs) => (k, vs.map(_._2).toSet)

@@ -7,6 +7,7 @@ import at.forsyte.harrsh.seplog.{FreeVar, Var}
 import at.forsyte.harrsh.seplog.inductive._
 
 import scala.annotation.tailrec
+import scala.collection.immutable.SortedSet
 import scala.util.Try
 
 // TODO: If we allow predicates that don't allocate pointers (like we now do in generalized progress), the root may not be unique!
@@ -72,7 +73,7 @@ class SidDirectionalityAnnotator(sid: SidLike, direction: FocusDirection) extend
   private def focusOfSh(currentAnnotation: Map[String, FreeVar], body: SymbolicHeap): Set[FreeVar] = {
     if (body.hasPointer) {
       body.pointers.toSet[PointsTo].flatMap {
-        ptr => Var.freeNonNullVars(ConstraintPropagation.closeSetUnderEqualities(direction.ptoArgsForDirection(ptr), body.pure))
+        ptr => Var.freeNonNullVars(SortedSet.empty[Var] ++ ConstraintPropagation.closeSetUnderEqualities(direction.ptoArgsForDirection(ptr), body.pure))
       }
     } else {
       for {

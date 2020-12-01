@@ -67,7 +67,7 @@ object EntailmentContext extends HarrshLogging {
         case i if i > 0 => false
         case 0 =>
           val differences = for {
-            (l, r) <- (leftLabels zip rightLabels).toStream
+            (l, r) <- (leftLabels zip rightLabels).to(LazyList)
             lSmaller = l lessThan r
             rSmaller = (!lSmaller) && (r lessThan l)
             if lSmaller || rSmaller

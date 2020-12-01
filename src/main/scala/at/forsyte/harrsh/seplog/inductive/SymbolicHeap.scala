@@ -1,6 +1,6 @@
 package at.forsyte.harrsh.seplog.inductive
 
-import scala.collection.SortedSet
+import scala.collection.immutable.SortedSet
 import at.forsyte.harrsh.heapautomata.utils.TrackingInfo
 import at.forsyte.harrsh.main._
 import at.forsyte.harrsh.seplog._
@@ -77,16 +77,19 @@ case class SymbolicHeap(pure : Seq[PureAtom], pointers: Seq[PointsTo], predCalls
       throw new IllegalArgumentException("Trying to replace " + predCalls.length + " calls with " + shs.length + " symbolic heaps")
     }
 
-    logger.debug(s"My FVs: $freeVars; replacing FVs: ${shs.map(_.freeVars)}")
-    logger.debug("Instantiating calls in " + this + " as follows:\n" + (predCalls zip shs).map{
+    logger.warn(s"My FVs: $freeVars; replacing FVs: ${shs.map(_.freeVars)}")
+    logger.warn("Instantiating calls in " + this + " as follows:\n" + (predCalls zip shs).map{
       case (call,instance) => "  " + call + " => " + instance
     }.mkString("\n"))
 
     val stateHeapPairs = predCalls zip shs
     stateHeapPairs.foldLeft(this){
       case (partiallyInstantiedHeap, (call,instance)) =>
+        logger.warn("part " + partiallyInstantiedHeap)
+        logger.warn("call " + call)
+        logger.warn("instance " + instance)
         val intermediate = partiallyInstantiedHeap.replaceCall(call, instance)
-        logger.debug(s"After replacing $call: $intermediate")
+        logger.warn(s"After replacing $call: $intermediate")
         intermediate
     }
   }
@@ -139,29 +142,29 @@ case class SymbolicHeap(pure : Seq[PureAtom], pointers: Seq[PointsTo], predCalls
     if (!predCalls.contains(call)) {
       throw new IllegalArgumentException(s"Trying to replace call $call which does not appear in $this")
     }
-    logger.debug(s"Will replace call $call with $instance")
+    logger.warn(s"Will replace call $call with $instance")
 
     val renamedAtoms = instance.atoms.instantiateFVs(instance.freeVars, call.args)
     val shFiltered = this.copy(predCalls = Combinators.dropFirstMatch[PredCall](predCalls, _ == call))
-    logger.debug(s"Renamed atoms in $instance to $renamedAtoms which will be combined with $shFiltered")
+    logger.warn(s"Renamed atoms in $instance to $renamedAtoms which will be combined with $shFiltered")
 
     // Shift non-shared variables of the renamed instance to avoid double capture
-    val nonShared : Set[BoundVar] = renamedAtoms.boundVars.toSet -- Var.boundVars(call.args.toSet)
+    val nonShared : SortedSet[BoundVar] = renamedAtoms.boundVars.diff(Var.boundVars(SortedSet.empty[Var] ++ call.args))
     val shiftedAtoms = if (nonShared.isEmpty) {
-      logger.trace("No shifting necessary.")
+      logger.warn("No shifting necessary.")
       renamedAtoms
     } else {
       val maxVar = if (boundVars.isEmpty) 0 else boundVars.maxBy(_.index).index
-      logger.trace("Will shift " + nonShared.mkString(",") + " because they don't appear in " + call)
+      logger.warn("Will shift " + nonShared.mkString(",") + " because they don't appear in " + call)
       val shifted = renamedAtoms.shiftBoundVars(nonShared, shiftTo = maxVar + 1)
-      logger.debug(s"Bound vars shifted to $shifted")
+      logger.warn(s"Bound vars shifted to $shifted")
       shifted
     }
 
     // After the shift, there is no unintentional double capture between bound variables, so we can simply combine the two heaps
     val res = shFiltered ++ shiftedAtoms
-    //val res = SymbolicHeap.mergeHeaps(renamedInstance, shFiltered, sharedVars = call.args.map(_.getVarOrZero).toSet)
-    logger.debug("Result of combination: " + res)
+    // val res = SymbolicHeap.mergeHeaps(renamedInstance, shFiltered, sharedVars = call.args.map(_.getVarOrZero).toSet)
+    logger.warn("Result of combination: " + res)
     res
 
   }

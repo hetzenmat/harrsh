@@ -8,7 +8,7 @@ object EntailmentContextComposition extends HarrshLogging {
 
   private type From = (RichSid, EntailmentContext, EntailmentContext, VarConstraints)
   private type Key = (EntailmentContext, EntailmentContext, VarConstraints)
-  private type Value = Stream[(EntailmentContext, VarConstraints, ConstraintUpdater)]
+  private type Value = LazyList[(EntailmentContext, VarConstraints, ConstraintUpdater)]
 
   private val ctxCompositionCache: HarrshCache[From, Value] = new UnboundedCache[From, Key, Value](
     "Context Composition Cache",
@@ -16,11 +16,11 @@ object EntailmentContextComposition extends HarrshLogging {
     from => compose(from._1, from._2, from._3, from._4)
   )
 
-  def apply(sid: RichSid, fst: EntailmentContext, snd: EntailmentContext, constraints: VarConstraints): Stream[(EntailmentContext, VarConstraints, ConstraintUpdater)] = {
+  def apply(sid: RichSid, fst: EntailmentContext, snd: EntailmentContext, constraints: VarConstraints): LazyList[(EntailmentContext, VarConstraints, ConstraintUpdater)] = {
     ctxCompositionCache((sid,fst,snd,constraints))
   }
 
-  private def compose(sid: RichSid, fst: EntailmentContext, snd: EntailmentContext, constraints: VarConstraints): Stream[(EntailmentContext, VarConstraints, ConstraintUpdater)] = {
+  private def compose(sid: RichSid, fst: EntailmentContext, snd: EntailmentContext, constraints: VarConstraints): LazyList[(EntailmentContext, VarConstraints, ConstraintUpdater)] = {
     for {
       CompositionInterface(t1, t2, n2) <- compositionCandidates(fst, snd)
       _ = logger.debug(s"Trying to compose on root ${t1.root} and leaf $n2")
@@ -62,9 +62,9 @@ object EntailmentContextComposition extends HarrshLogging {
 
   private case class CompositionInterface(ctxToEmbed: EntailmentContext, embeddingTarget: EntailmentContext, leafToReplaceInEmbedding: ContextPredCall)
 
-  private def compositionCandidates(fst: EntailmentContext, snd: EntailmentContext): Stream[CompositionInterface] = {
+  private def compositionCandidates(fst: EntailmentContext, snd: EntailmentContext): LazyList[CompositionInterface] = {
     for {
-      (ctxWithRoot, ctxWithAbstractLeaf) <- Stream((fst,snd), (snd,fst))
+      (ctxWithRoot, ctxWithAbstractLeaf) <- LazyList((fst,snd), (snd,fst))
       root = ctxWithRoot.root
       abstractLeaf <- ctxWithAbstractLeaf.calls
       // Only consider for composition if the labeling predicates are the same

@@ -3,7 +3,7 @@ package at.forsyte.harrsh.seplog
 import at.forsyte.harrsh.seplog.inductive.{PointsTo, PureAtom}
 import at.forsyte.harrsh.util.{StringUtils, ToLatex}
 
-import scala.collection.SortedSet
+import scala.collection.immutable.SortedSet
 
 /**
   * Created by jens on 11/2/16.
@@ -139,7 +139,7 @@ object Var {
 
   def getNextUnusedBoundVar(vars: Iterable[Var]): BoundVar = {
     try {
-      val maxUsed = Var.boundVars(vars.toSet).map(_.index).max
+      val maxUsed = Var.boundVars(SortedSet.empty[Var] ++ vars).map(_.index).max
       BoundVar(maxUsed + 1)
     } catch {
       case _: UnsupportedOperationException => BoundVar(1)
@@ -147,12 +147,12 @@ object Var {
   }
 
   // TODO: Remove code duplication. Generic solution?
-  def boundVars(vars: Set[Var]): Set[BoundVar] = {
+  def boundVars(vars: SortedSet[Var]): SortedSet[BoundVar] = {
     vars.collect {
       case v: BoundVar => v
     }
   }
-  def freeNonNullVars(vars: Set[Var]): Set[FreeVar] = {
+  def freeNonNullVars(vars: SortedSet[Var]): SortedSet[FreeVar] = {
     vars.collect {
       case v: FreeVar => v
     }

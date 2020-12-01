@@ -77,7 +77,7 @@ object Renaming {
 
     override def extendWith(k: Var, v: Var): Renaming = MapBasedRenaming(map.updated(k, v))
 
-    override def toString = "[" + map.map(p => p._1 + "->" + p._2).mkString(",") + "]"
+    override def toString(): String = "[" + map.map(p => s"${p._1}->${p._2}").mkString(",") + "]"
 
     override def isDefinedAt(s: Var): Boolean = map.isDefinedAt(s)
 

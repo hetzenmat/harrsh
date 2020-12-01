@@ -33,7 +33,7 @@ case class ContextPredCall(pred: Predicate, subst: Substitution) {
   }
 
   def symbolicHeapLabel: String = {
-    '$' + pred.defaultCall.toLatex.replaceAllLiterally("α", """\alpha""") + '$'
+    "$" + pred.defaultCall.toLatex.replace("α", """\alpha""") + "$"
   }
 
   /**

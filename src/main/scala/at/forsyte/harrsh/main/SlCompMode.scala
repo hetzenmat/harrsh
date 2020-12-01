@@ -9,6 +9,7 @@ import at.forsyte.harrsh.parsers.QueryParser.{FileExtensions, ParseException}
 import at.forsyte.harrsh.parsers.slcomp
 import at.forsyte.harrsh.refinement.{DecisionProcedures, RunSat, SatChecker}
 import at.forsyte.harrsh.util.{Combinators, IOUtils, StringUtils}
+import scala.jdk.CollectionConverters._
 
 import scala.util.{Failure, Success, Try}
 
@@ -39,7 +40,7 @@ object SlCompMode {
   trait Mode[A]
   {
     def runOnFile(file: String): A
-    def batchPostproc(resultStream: Stream[(String,A)]): Unit = {
+    def batchPostproc(resultStream: LazyList[(String,A)]): Unit = {
       // Force evaluation of stream
       resultStream.last
     }
@@ -58,7 +59,7 @@ object SlCompMode {
     def runList(bms: Seq[String]): Unit = {
       GlobalConfig.set(params.IsBatchMode, true)
       val resStream = for {
-        bm <- bms.toStream
+        bm <- bms.to(LazyList)
         _ = beforeFile(bm)
         res = runOnFile(bm)
         _ = afterFile(bm,res)
@@ -70,7 +71,7 @@ object SlCompMode {
 
     def runBatch(bmFile: String): Unit = {
       val files = for {
-        line <- IOUtils.readFile(bmFile).lines
+        line <- IOUtils.readFile(bmFile).lines.iterator().asScala
         trimmed = line.trim
         if trimmed.nonEmpty
         if trimmed(0) != '#'
@@ -136,7 +137,7 @@ object SlCompMode {
       }
     }
 
-    override def batchPostproc(resultStream: Stream[(String, PreprocRes)]): Unit = {
+    override def batchPostproc(resultStream: LazyList[(String, PreprocRes)]): Unit = {
       val (errors, successes) = resultStream.partition(pair => pair._2._1.nonEmpty)
       val numErrs = errors.size
       val numBms = errors.size + successes.size
@@ -188,7 +189,7 @@ object SlCompMode {
       BenchmarkResult(res, deviation, time)
     }
 
-    override def batchPostproc(results: Stream[(String, BenchmarkResult)]): Unit = {
+    override def batchPostproc(results: LazyList[(String, BenchmarkResult)]): Unit = {
       val stats = for {
         (bench, res) <- results
       } yield Seq(
@@ -228,7 +229,7 @@ object SlCompMode {
       println(output)
     }
 
-    override def batchPostproc(resultStream: Stream[(String, Unit)]): Unit = {
+    override def batchPostproc(resultStream: LazyList[(String, Unit)]): Unit = {
       println(s"FINISHED BENCHMARK SUITE (timeout: ${GlobalConfig.getDuration(params.BatchTimeout).toMillis} ms)")
     }
 
@@ -299,7 +300,7 @@ object SlCompMode {
       println(s"Constructed the following benchmark:\n" + res.getOrElse("(failed)"))
     }
 
-    override def batchPostproc(resultStream: Stream[(String, Option[Query])]): Unit = {
+    override def batchPostproc(resultStream: LazyList[(String, Option[Query])]): Unit = {
       var parsed = 0
       var failed = 0
       var failedNames: List[String] = Nil
