@@ -9,6 +9,11 @@ case class SymbolicHeap(quantified: Int,
                         calls: Seq[PredicateCall],
                         equalities: Seq[Equality],
                         disEqualities: Seq[DisEquality]) {
+  val allVars: Set[Var] = (spatial ++ calls ++ equalities ++ disEqualities).foldLeft(Set.empty[Var]) { (set, atom) =>
+    set.union(atom.vars)
+  }
+
+  val freeVars: Set[Var] = allVars.collect { case a: FreeVar => a }
 }
 
 object SymbolicHeap {

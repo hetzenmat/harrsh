@@ -17,12 +17,15 @@ object GslFormula {
 
   sealed abstract class Atom extends GslFormula {
     type T = Atom
+    def vars: Set[Var]
   }
 
   object Atom {
 
     final case class Emp() extends Atom {
       override def substitute(substitution: Map[Var, Var]): Emp = this
+
+      override def vars: Set[Var] = Set.empty
     }
 
     final case class Equality(vars: Set[Var]) extends Atom {
@@ -43,10 +46,14 @@ object GslFormula {
 
     final case class PointsTo(from: Var, to: Seq[Var]) extends Atom {
       override def substitute(substitution: Map[Var, Var]): PointsTo = PointsTo(substitution.getOrElse(from, from), to.map(v => substitution.getOrElse(v, v)))
+
+      override def vars: Set[Var] = to.prepended(from).toSet
     }
 
     final case class PredicateCall(pred: String, args: Seq[Var]) extends Atom {
       override def substitute(substitution: Map[Var, Var]): PredicateCall = PredicateCall(pred, args.map(v => substitution.getOrElse(v, v)))
+
+      override def vars: Set[Var] = args.toSet
     }
 
   }

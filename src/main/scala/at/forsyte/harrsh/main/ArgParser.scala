@@ -28,7 +28,7 @@ object ArgParser {
     override def toString: String = {
       val fst = mainStr
       val snd = description.getOrElse("")
-      val padding = " " * (76-fst.length-snd.length)
+      val padding = " " * (76 - fst.length - snd.length)
       "    " + fst + padding + snd
     }
   }
@@ -36,9 +36,9 @@ object ArgParser {
   private case class ModeDef(mode: ExecutionMode, long: String, short: Option[String], fileDesc: String, description: String, inHelpMessage: Boolean, mandatoryOptions: Seq[CommandLineOption], otherOptions: Seq[CommandLineOption]) {
 
     override def toString: String = {
-      val flagStr = ("  "+long+short.map(", "+_).getOrElse("")).padTo(20, ' ')
+      val flagStr = ("  " + long + short.map(", " + _).getOrElse("")).padTo(20, ' ')
       val options = mandatoryOptions ++ otherOptions
-      val optionsStr = if (options.nonEmpty) options.mkString("\n","\n","") else ""
+      val optionsStr = if (options.nonEmpty) options.mkString("\n", "\n", "") else ""
       flagStr + description + optionsStr
     }
 
@@ -59,8 +59,9 @@ object ArgParser {
   val UseUnionSolver = "union-solver"
 
   private val modes = Seq(
+    ModeDef(GSL, "--gsl", Some("-g"), "file", "GSL satisfiability checking", inHelpMessage = true, Seq.empty, Seq.empty),
     ModeDef(Entailment, "--entailment", Some("-e"), "file", "Entailment checking", inHelpMessage = true, Seq.empty,
-      Seq(startEntailmentWithSatCheckOption,withPatternMatchingStageOption,computePerSideSidsOption,computeSccsOption,useUnionSolverOption)),
+      Seq(startEntailmentWithSatCheckOption, withPatternMatchingStageOption, computePerSideSidsOption, computeSccsOption, useUnionSolverOption)),
     ModeDef(Decide, "--decide", Some("-d"), "file", "Check if the given SID has the given property", inHelpMessage = true, Seq(propOption), Seq.empty),
     ModeDef(Refine, "--refine", Some("-r"), "file", "Refine the given SID by the given property", inHelpMessage = true, Seq(propOption), Seq.empty),
     ModeDef(Analyze, "--analyze", Some("-a"), "file", "Analyze Robustness of given SID", inHelpMessage = true, Seq.empty, Seq.empty),
@@ -75,7 +76,7 @@ object ArgParser {
     ModeDef(TacasArtifact, "--tacas", None, "", "", inHelpMessage = false, Seq.empty, Seq.empty)
   )
 
-  val propertiesString =
+  val propertiesString: String =
     """Properties:
       |SAT                    Satisfiable unfoldings
       |UNSAT                  Unsatisfiable unfoldings

@@ -7,7 +7,7 @@ import ExecutionMode._
   * Created by jens on 2/24/17.
   */
 sealed trait ExecutionMode {
-  def requiresProp : Boolean = this match {
+  def requiresProp: Boolean = this match {
     case Help => false
     case Decide => true
     case Refine => true
@@ -22,9 +22,10 @@ sealed trait ExecutionMode {
     case ParseOnly => false
     case ConvertEntailmentBatch => false
     case TacasArtifact => false
+    case GSL => false
   }
 
-  def defaultTimeout : Duration = this match {
+  def defaultTimeout: Duration = this match {
     case Decide => Duration(120, SECONDS)
     case RefinementBatch => Duration(120, SECONDS)
     case EntailmentBatch => Duration(120, SECONDS)
@@ -33,9 +34,11 @@ sealed trait ExecutionMode {
     case GetModel => Duration(120, SECONDS)
     case ModelChecking => Duration(120, SECONDS)
     case ParseOnly => Duration(10, SECONDS)
+    case GSL => Duration(120, SECONDS)
     case _ => Duration(0, SECONDS)
   }
 }
+
 object ExecutionMode {
 
   case object Help extends ExecutionMode
@@ -65,4 +68,7 @@ object ExecutionMode {
   case object ConvertEntailmentBatch extends ExecutionMode
 
   case object TacasArtifact extends ExecutionMode
+
+  case object GSL extends ExecutionMode
+
 }
