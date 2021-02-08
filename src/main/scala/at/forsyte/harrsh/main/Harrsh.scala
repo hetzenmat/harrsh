@@ -187,6 +187,9 @@ object Harrsh extends Implicits {
         val result = modelChecker.isModel(model, sid)
         println("Finished model checking. Result: " + result)
       }
+
+    case GSL =>
+      println("GSL satisfiability decision procedure")
   }
 
 }

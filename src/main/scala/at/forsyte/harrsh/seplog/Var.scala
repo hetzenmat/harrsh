@@ -12,26 +12,34 @@ import scala.collection.immutable.SortedSet
 sealed trait Var extends Ordered[Var] {
 
   def isFreeNonNull: Boolean
-  def isFree : Boolean
-  def isBound : Boolean
-  def isNull : Boolean
+
+  def isFree: Boolean
+
+  def isBound: Boolean
+
+  def isNull: Boolean
 
   /**
     * Construct atom that asserts the equality of `this` with `other`
     */
   def =:=(other: Var): PureAtom = PureAtom(this, other, isEquality = true)
+
   /**
     * Construct atom that asserts the disequality of `this` with `other`
     */
   def =/=(other: Var): PureAtom = PureAtom(this, other, isEquality = false)
 
   def ->(other: Var): PointsTo = PointsTo(this, other)
-  def ->(other2: (Var,Var)): PointsTo = PointsTo(this, Seq(other2._1, other2._2))
-  def ->(other3: (Var,Var,Var)): PointsTo = PointsTo(this, Seq(other3._1, other3._2, other3._3))
-  def ->(other4: (Var,Var,Var,Var)): PointsTo = PointsTo(this, Seq(other4._1, other4._2, other4._3, other4._4))
-  def ->(other5: (Var,Var,Var,Var,Var)): PointsTo = PointsTo(this, Seq(other5._1, other5._2, other5._3, other5._4, other5._5))
 
-  def rename(f : Renaming) : Var = f(this)
+  def ->(other2: (Var, Var)): PointsTo = PointsTo(this, Seq(other2._1, other2._2))
+
+  def ->(other3: (Var, Var, Var)): PointsTo = PointsTo(this, Seq(other3._1, other3._2, other3._3))
+
+  def ->(other4: (Var, Var, Var, Var)): PointsTo = PointsTo(this, Seq(other4._1, other4._2, other4._3, other4._4))
+
+  def ->(other5: (Var, Var, Var, Var, Var)): PointsTo = PointsTo(this, Seq(other5._1, other5._2, other5._3, other5._4, other5._5))
+
+  def rename(f: Renaming): Var = f(this)
 
   override def compare(other: Var): Int = (this, other) match {
     case (BoundVar(i), BoundVar(j)) => i - j
@@ -51,27 +59,37 @@ case class FreeVar(name: String) extends Var {
   assert(!Var.isNullString(name))
 
   override def isFreeNonNull: Boolean = true
+
   override def isFree: Boolean = true
+
   override def isBound: Boolean = false
+
   override def isNull: Boolean = false
 
-  override def toString : String = name
+  override def toString: String = name
 }
 
 case object NullConst extends Var {
   override def isFreeNonNull: Boolean = false
+
   override def isFree: Boolean = true
+
   override def isBound: Boolean = false
+
   override def isNull: Boolean = true
 
-  override def toString : String = Var.NullString
+  override def toString: String = Var.NullString
 }
 
 case class BoundVar(index: Int) extends Var {
   assert(index > 0)
+
   override def isFreeNonNull: Boolean = false
+
   override def isFree: Boolean = false
+
   override def isBound: Boolean = true
+
   override def isNull: Boolean = false
 
   override def toString: String = Var.BoundVarPrefix + index
@@ -84,7 +102,7 @@ object Var {
   val BoundVarPrefix = "\u03b1"
   val FreeVarDefaultPrefix = "x"
 
-  implicit def ord[T <: Var]: Ordering[T] = Ordering.fromLessThan(_<_)
+  implicit def ord[T <: Var]: Ordering[T] = Ordering.fromLessThan(_ < _)
 
   private val latexReplacements = Seq(
     "\u03b1" -> "\\alpha",
@@ -152,48 +170,51 @@ object Var {
       case v: BoundVar => v
     }
   }
+
   def freeNonNullVars(vars: SortedSet[Var]): SortedSet[FreeVar] = {
     vars.collect {
       case v: FreeVar => v
     }
   }
+
   def freeNonNullVars(vars: Seq[Var]): Seq[FreeVar] = {
     vars.collect {
       case v: FreeVar => v
     }
   }
 
-  def containsNull(vars: Iterable[Var]) = vars.exists(_ == NullConst)
+  def containsNull(vars: Iterable[Var]): Boolean = vars.exists(_ == NullConst)
 
-  @inline def maxOf(vars : Iterable[Var]) : Var = vars.max
+  @inline def maxOf(vars: Iterable[Var]): Var = vars.max
 
-  @inline def minOf(vars : Iterable[Var]) : Var = vars.min
+  @inline def minOf(vars: Iterable[Var]): Var = vars.min
 
   type Naming = Var => String
   type UnNaming = String => Var
 
   object Naming {
 
-    lazy val DefaultNaming : Naming = v => v.toString
+    lazy val DefaultNaming: Naming = v => v.toString
 
-    lazy val DefaultHarrshNaming : Naming = v => v.toString.map{
+    lazy val DefaultHarrshNaming: Naming = v => v.toString.map {
       c => if (c == BoundVarPrefix.head) 'y' else c
     }
 
-    def mkNaming(freeVars : Seq[String], boundVars: SortedSet[BoundVar], boundVarNames : Seq[String]) : Naming = {
-      val freeVarNaming = freeVars map (v => (FreeVar(v),v))
+    def mkNaming(freeVars: Seq[String], boundVars: SortedSet[BoundVar], boundVarNames: Seq[String]): Naming = {
+      val freeVarNaming = freeVars map (v => (FreeVar(v), v))
       val boundVarNaming = boundVars zip boundVarNames
-      Map.empty[Var,String] ++ freeVarNaming ++ boundVarNaming ++ Map(NullConst -> NullConst.toString)
+      Map.empty[Var, String] ++ freeVarNaming ++ boundVarNaming ++ Map(NullConst -> NullConst.toString)
     }
 
-    def mkUnNaming(freeVars : Seq[String], boundVars : Seq[String]) : UnNaming = {
-      val freeVarNaming = freeVars map (v => (v,FreeVar(v)))
-      val boundVarNaming = boundVars.zipWithIndex map (p => (p._1,BoundVar(p._2+1)))
+    def mkUnNaming(freeVars: Seq[String], boundVars: Seq[String]): UnNaming = {
+      val freeVarNaming = freeVars map (v => (v, FreeVar(v)))
+      val boundVarNaming = boundVars.zipWithIndex map (p => (p._1, BoundVar(p._2 + 1)))
       Map.empty[String, Var] ++ freeVarNaming ++ boundVarNaming ++ Map(NullConst.toString -> NullConst)
     }
 
     /**
       * Return new naming where all integer suffixes are turned into LaTeX subscripts
+      *
       * @param naming Original naming
       * @return updated naming
       */

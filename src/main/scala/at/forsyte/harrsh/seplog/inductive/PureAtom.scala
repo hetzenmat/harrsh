@@ -17,11 +17,11 @@ case class PureAtom(l: Var, r: Var, isEquality: Boolean) extends SepLogAtom with
 
   override def isPure = true
 
-  override def toSymbolicHeap = SymbolicHeap(Seq(this), Seq.empty, Seq.empty, Var.freeNonNullVars(Seq(l,r)))
+  override def toSymbolicHeap: SymbolicHeap = SymbolicHeap(Seq(this), Seq.empty, Seq.empty, Var.freeNonNullVars(Seq(l, r)))
 
   override def renameVars(f: Renaming): PureAtom = PureAtom(l.rename(f), r.rename(f), isEquality)
 
-  override def getVars : SortedSet[Var] = SortedSet.empty[Var].incl(l).incl(r)
+  override def getVars: SortedSet[Var] = SortedSet.empty[Var].incl(l).incl(r)
 
   def comparesFree: Boolean = getNonNullVars.forall(_.isFree)
 

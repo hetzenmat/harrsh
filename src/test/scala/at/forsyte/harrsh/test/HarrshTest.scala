@@ -1,6 +1,5 @@
 package at.forsyte.harrsh.test
 
-//import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest._
 import matchers.should._
 
@@ -12,8 +11,9 @@ abstract class HarrshTest extends flatspec.AnyFlatSpec with Matchers {
 
   /**
     * Skip the given computation (to temporarily deactivate individual test cases)
+    *
     * @param comp Computation to skip
     */
-  def skip(comp : => Unit) = ()
+  def skip(comp: => Unit): Unit = ()
 
 }

@@ -102,7 +102,5 @@ case class AtomContainer(pure : Seq[PureAtom], pointers: Seq[PointsTo], predCall
 }
 
 object AtomContainer {
-
-  val boundVarOrdering = Ordering.fromLessThan[BoundVar](_ < _)
-
+  val boundVarOrdering: Ordering[BoundVar] = Ordering.fromLessThan[BoundVar](_ < _)
 }

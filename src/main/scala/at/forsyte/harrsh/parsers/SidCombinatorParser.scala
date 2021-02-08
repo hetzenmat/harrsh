@@ -10,21 +10,21 @@ import scala.util.parsing.combinator.JavaTokenParsers
   */
 private[parsers] trait SidCombinatorParser extends JavaTokenParsers with SidParser {
 
-  def parseSID : Parser[Sid]
+  def parseSID: Parser[Sid]
 
-  def parseBody : Parser[StringSymbolicHeap]
+  def parseBody: Parser[StringSymbolicHeap]
 
-  def parseSymbolicHeap : Parser[SymbolicHeap]
+  def parseSymbolicHeap: Parser[SymbolicHeap]
 
-  override final def runOnSid(input : String, printFailure : Boolean = true) : Option[Sid] = catchNumberFormatException{
+  override final def runOnSid(input: String, printFailure: Boolean = true): Option[Sid] = catchNumberFormatException {
     runParser(parseSID)(input, printFailure)
   }
 
-  private[parsers] def catchNumberFormatException[A](f : => Option[A]) : Option[A] = {
+  private[parsers] def catchNumberFormatException[A](f: => Option[A]): Option[A] = {
     try {
       f
     } catch {
-      case e : NumberFormatException =>
+      case _: NumberFormatException =>
         IOUtils.printWarningToConsole("Conversion of variables failed -- make sure to use x1,x2,... as free variable identifiers")
         None
     }
@@ -32,14 +32,14 @@ private[parsers] trait SidCombinatorParser extends JavaTokenParsers with SidPars
 
   override def ident: Parser[String] = """[a-zA-Z_][a-zA-Z0-9_']*""".r
 
-  protected def runParser[A](parser : Parser[A])(input : String, printFailure : Boolean) : Option[A] = {
+  protected def runParser[A](parser: Parser[A])(input: String, printFailure: Boolean): Option[A] = {
     val inputWithoutComments = ParseUtils.stripCommentLines(input, "#")
     parseAll(parser, inputWithoutComments) match {
-      case Success(result, next) => Some(result)
-      case Failure(msg,_) =>
+      case Success(result, _) => Some(result)
+      case Failure(msg, _) =>
         if (printFailure) println("FAILURE: " + msg)
         None
-      case Error(msg,_) =>
+      case Error(msg, _) =>
         if (printFailure) println("ERROR: " + msg)
         None
     }

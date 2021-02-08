@@ -4,6 +4,11 @@ import GslFormula.Atom._
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
 
+/**
+  * Created by Matthias Hetzenberger on 2021-02-08
+  *
+  * Represent a symbolic heap
+  */
 case class SymbolicHeap(quantified: Int,
                         spatial: Seq[PointsTo],
                         calls: Seq[PredicateCall],
