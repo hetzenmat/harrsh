@@ -21,6 +21,8 @@ libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.3.2"
 
 libraryDependencies += "org.antlr" % "antlr4-runtime" % "4.7"
 
+libraryDependencies += "org.parboiled" %% "parboiled" % "2.2.1"
+
 scalacOptions ++= Seq("-deprecation", "-feature")
 
 //test in assembly := {}
