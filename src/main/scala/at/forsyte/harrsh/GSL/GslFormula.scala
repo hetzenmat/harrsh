@@ -7,36 +7,90 @@ import at.forsyte.harrsh.seplog.Var
   *
   * ADT to model GSL formulae
   */
-sealed abstract class GslFormula
+sealed abstract class GslFormula {
+  type T <: GslFormula
+
+  def substitute(substitution: Map[Var, Var]): T
+}
 
 object GslFormula {
 
-  sealed abstract class Atom
+  sealed abstract class Atom extends GslFormula {
+    type T = Atom
+  }
 
   object Atom {
 
-    final case class Emp() extends GslFormula
+    final case class Emp() extends Atom {
+      override def substitute(substitution: Map[Var, Var]): Emp = this
+    }
 
-    final case class Equality(left: Var, right: Var) extends GslFormula
+    final case class Equality(vars: Set[Var]) extends Atom {
+      override def substitute(substitution: Map[Var, Var]): Equality = new Equality(vars.map(v => substitution.getOrElse(v, v)))
+    }
 
-    final case class DisEquality(left: Var, right: Var) extends GslFormula
+    object Equality {
+      def apply(left: Var, right: Var): Equality = Equality(Set(left, right))
+    }
 
-    final case class PointsTo(from: Var, to: Seq[Var]) extends GslFormula
+    final case class DisEquality(vars: Set[Var]) extends Atom {
+      override def substitute(substitution: Map[Var, Var]): DisEquality = new DisEquality(vars.map(v => substitution.getOrElse(v, v)))
+    }
 
-    final case class PredicateCall(pred: String, args: Seq[Var]) extends GslFormula
+    object DisEquality {
+      def apply(left: Var, right: Var): DisEquality = DisEquality(Set(left, right))
+    }
+
+    final case class PointsTo(from: Var, to: Seq[Var]) extends Atom {
+      override def substitute(substitution: Map[Var, Var]): PointsTo = PointsTo(substitution.getOrElse(from, from), to.map(v => substitution.getOrElse(v, v)))
+    }
+
+    final case class PredicateCall(pred: String, args: Seq[Var]) extends Atom {
+      override def substitute(substitution: Map[Var, Var]): PredicateCall = PredicateCall(pred, args.map(v => substitution.getOrElse(v, v)))
+    }
 
   }
 
-  final case class SeparatingConjunction(left: GslFormula, right: GslFormula) extends GslFormula
+  final case class SeparatingConjunction(left: GslFormula, right: GslFormula) extends GslFormula {
+    type T = SeparatingConjunction
 
-  final case class StandardConjunction(left: GslFormula, right: GslFormula) extends GslFormula
+    override def substitute(substitution: Map[Var, Var]): T =
+      SeparatingConjunction(left.substitute(substitution), right.substitute(substitution))
+  }
 
-  final case class Disjunction(left: GslFormula, right: GslFormula) extends GslFormula
+  final case class StandardConjunction(left: GslFormula, right: GslFormula) extends GslFormula {
+    type T = StandardConjunction
 
-  final case class Negation(guard: GslFormula, negated: GslFormula) extends GslFormula
+    override def substitute(substitution: Map[Var, Var]): T =
+      StandardConjunction(left.substitute(substitution), right.substitute(substitution))
+  }
 
-  final case class MagicWand(guard: GslFormula, left: GslFormula, right: GslFormula) extends GslFormula
+  final case class Disjunction(left: GslFormula, right: GslFormula) extends GslFormula {
+    type T = Disjunction
 
-  final case class Septraction(guard: GslFormula, left: GslFormula, right: GslFormula) extends GslFormula
+    override def substitute(substitution: Map[Var, Var]): T =
+      Disjunction(left.substitute(substitution), right.substitute(substitution))
+  }
+
+  final case class Negation(guard: GslFormula, negated: GslFormula) extends GslFormula {
+    type T = Negation
+
+    override def substitute(substitution: Map[Var, Var]): T =
+      Negation(guard.substitute(substitution), negated.substitute(substitution))
+  }
+
+  final case class MagicWand(guard: GslFormula, left: GslFormula, right: GslFormula) extends GslFormula {
+    type T = MagicWand
+
+    override def substitute(substitution: Map[Var, Var]): T =
+      MagicWand(guard.substitute(substitution), left.substitute(substitution), right.substitute(substitution))
+  }
+
+  final case class Septraction(guard: GslFormula, left: GslFormula, right: GslFormula) extends GslFormula {
+    type T = Septraction
+
+    override def substitute(substitution: Map[Var, Var]): T =
+      Septraction(guard.substitute(substitution), left.substitute(substitution), right.substitute(substitution))
+  }
 
 }

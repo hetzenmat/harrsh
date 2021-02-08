@@ -1,10 +1,10 @@
 package at.forsyte.harrsh.parsers
 
-import at.forsyte.harrsh.GSL.GslFormula
+import at.forsyte.harrsh.GSL.{GslFormula, SymbolicHeap}
 import at.forsyte.harrsh.GSL.GslFormula._
+import at.forsyte.harrsh.GSL.GslFormula.Atom._
 import at.forsyte.harrsh.parsers.GslParser.WhiteSpaceChar
-import at.forsyte.harrsh.seplog.{FreeVar, NullConst, Var}
-import org.parboiled2
+import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 import org.parboiled2._
 
 /**
@@ -26,7 +26,17 @@ class GslParser(val input: ParserInput) extends Parser {
   override def errorTraceCollectionLimit = 1000
 
   def parseFormula: Rule1[GslFormula] = rule {
-    _SeparatingConjunction ~ parboiled2.EOI
+    _SeparatingConjunction ~ EOI
+  }
+
+  def parseSymbolicHeap: Rule1[SymbolicHeap] = rule {
+    (ws('∃') ~ oneOrMore(_Identifier) ~ ws('.') ~ oneOrMore(_SymbolicHeapAtom).separatedBy(ws('*')) ~ EOI ~>
+      ((vars: Seq[String], atoms: Seq[Atom]) => SymbolicHeap.buildSymbolicHeap(vars, atoms))) |
+      (oneOrMore(_SymbolicHeapAtom).separatedBy(ws('*')) ~ EOI ~> ((atoms: Seq[Atom]) => SymbolicHeap.buildSymbolicHeap(Seq.empty, atoms)))
+  }
+
+  def _SymbolicHeapAtom: Rule1[Atom] = rule {
+    _PointsTo | _PredicateCall | _Equality | _DisEquality
   }
 
   def _SeparatingConjunction: Rule1[GslFormula] = rule {
@@ -105,23 +115,23 @@ class GslParser(val input: ParserInput) extends Parser {
       (ws('(') ~ _SeparatingConjunction ~ ws(')'))
   }
 
-  def _Emp: Rule1[GslFormula] = rule(ws("emp") ~ push(GslFormula.Atom.Emp()))
+  def _Emp: Rule1[Atom.Emp] = rule(ws("emp") ~ push(GslFormula.Atom.Emp()))
 
-  def _Equality: Rule1[GslFormula] = rule {
-    _Var ~ (ws("=") ~ _Var) ~> ((left, right) => GslFormula.Atom.Equality(left, right))
+  def _Equality: Rule1[Atom.Equality] = rule {
+    _Var ~ (ws("=") ~ _Var) ~> ((left: Var, right: Var) => Equality(left, right))
   }
 
-  def _DisEquality: Rule1[GslFormula] = rule {
-    _Var ~ (ws("!=") ~ _Var) ~> ((left, right) => GslFormula.Atom.DisEquality(left, right))
+  def _DisEquality: Rule1[Atom.DisEquality] = rule {
+    _Var ~ (ws("!=") ~ _Var) ~> ((left: Var, right: Var) => DisEquality(left, right))
   }
 
-  def _PointsTo: Rule1[GslFormula] = rule {
+  def _PointsTo: Rule1[Atom.PointsTo] = rule {
     _Var ~ ws("->") ~ _Var ~> ((from: Var, to: Var) => GslFormula.Atom.PointsTo(from, Seq(to))) |
       _Var ~ ws("->") ~ _ParenList ~> ((from: Var, to: Seq[Var]) => GslFormula.Atom.PointsTo(from, to))
   }
 
-  def _PredicateCall: Rule1[GslFormula] = rule {
-    _Predicate ~ ws('(') ~ _VarList ~ ws(')') ~> ((pred: String, args: Seq[Var]) => GslFormula.Atom.PredicateCall(pred, args))
+  def _PredicateCall: Rule1[Atom.PredicateCall] = rule {
+    _Identifier ~ ws('(') ~ _VarList ~ ws(')') ~> ((pred: String, args: Seq[Var]) => GslFormula.Atom.PredicateCall(pred, args))
   }
 
   def _ParenList: Rule1[Seq[Var]] = rule {
@@ -132,15 +142,21 @@ class GslParser(val input: ParserInput) extends Parser {
     oneOrMore(_Var).separatedBy(ws(','))
   }
 
-  def _Predicate: Rule1[String] = rule {
-    capture((predicate(CharPredicate.Alpha) | '_') ~ zeroOrMore(predicate(CharPredicate.AlphaNum) | '_')) ~ _WhiteSpace
+  def _QuantifiedVar: Rule1[String] = rule {
+    (!("null" | "nil")) ~ _Var ~> ((v: Var) => v match {
+      case fv: FreeVar => fv.name
+    })
   }
 
   def _Var: Rule1[Var] = rule {
-    (!"emp") ~ capture((predicate(CharPredicate.Alpha) | '_') ~ zeroOrMore(predicate(CharPredicate.AlphaNum) | '_')) ~ _WhiteSpace ~> ((s: String) => s match {
+    (!"emp") ~ _Identifier ~> ((s: String) => s match {
       case "null" | "nil" => NullConst
       case v => FreeVar(v)
     })
+  }
+
+  def _Identifier: Rule1[String] = rule {
+    capture((predicate(CharPredicate.Alpha) | '_') ~ zeroOrMore(predicate(CharPredicate.AlphaNum) | '_')) ~ _WhiteSpace
   }
 
   def _WhiteSpace: Rule0 = rule(quiet(zeroOrMore(WhiteSpaceChar)))
