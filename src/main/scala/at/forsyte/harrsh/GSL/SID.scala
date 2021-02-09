@@ -1,9 +1,10 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL.GslFormula.Atom.PredicateCall
 import at.forsyte.harrsh.GSL.SID.establishedResultSuccess
 import at.forsyte.harrsh.heapautomata.instances.TrackingAutomata
 import at.forsyte.harrsh.refinement.RefinementAlgorithms
-import at.forsyte.harrsh.seplog.FreeVar
+import at.forsyte.harrsh.seplog.{FreeVar, Var}
 import at.forsyte.harrsh.seplog.inductive.{PointsTo, PredCall, RichSid, SepLogAtom, SidFactory, SymbolicHeap => SH}
 
 /**
@@ -17,6 +18,14 @@ case class SID(predicates: Map[String, SID.Predicate]) {
 
   def satisfiesProgress: Boolean =
     predicates.keys.forall(satisfiesProgress)
+
+  def satisfiesConnectivity(pred: String): Boolean =
+    predicates.contains(pred) && predicates(pred).bodies.forall(body => {
+      body.calls.forall({ case PredicateCall(name, args) => predicates.contains(name) && body.lref.contains(args(predicates(name).predroot)) })
+    })
+
+  def satisfiesConnectivity: Boolean =
+    predicates.keys.forall(satisfiesConnectivity)
 
   def satisfiesEstablishment: Boolean = {
     predicates.keys.forall(p => {
@@ -74,6 +83,9 @@ object SID {
         case Some(i) => i
       }
     }
+
+    def predrootVar: Var =
+      FreeVar(args(predroot))
 
   }
 

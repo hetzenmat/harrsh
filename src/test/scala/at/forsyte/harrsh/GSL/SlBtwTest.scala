@@ -2,15 +2,15 @@ package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.SID.Predicate
 import at.forsyte.harrsh.parsers.GslParser
-import at.forsyte.harrsh.seplog.FreeVar
+import at.forsyte.harrsh.seplog.{BoundVar, FreeVar}
 import org.scalatest.flatspec.AnyFlatSpec
 
 class SlBtwTest extends AnyFlatSpec {
-  "Predicate" should "correctly compute progress and establishment for lseg" in {
+  "Predicate" should "correctly compute progress, connectivity and establishment for lseg" in {
     val parser = new GslParser(
       """
         |lseg(x1,x2) <= x1 -> <x2>
-        |lseg(x1,x2) <= ∃y.x1 -> (x2) * lseg(y, x2)
+        |lseg(x1,x2) <= ∃y.x1 -> (y) * lseg(y, x2)
         |""".stripMargin)
     val result = parser.parseSID.run()
 
@@ -23,13 +23,15 @@ class SlBtwTest extends AnyFlatSpec {
     val pred: Predicate = sid.predicates("lseg")
 
     assert(pred.predroot == 0)
-    assert(pred.bodies.forall(_.lref == Set(FreeVar("x2"))))
+    assert(pred.bodies.head.lref == Set(FreeVar("x2")))
+    assert(pred.bodies.tail.head.lref == Set(BoundVar(1)))
 
     assert(sid.satisfiesProgress)
+    assert(sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
   }
 
-  "SID" should "correctly compute progress and establishment for odd/even" in {
+  "SID" should "correctly compute progress, connectivity and establishment for odd/even" in {
     val parser = new GslParser(
       """
         |odd(x1,x2) <= x1 -> x2
@@ -51,6 +53,7 @@ class SlBtwTest extends AnyFlatSpec {
     assert(even.predroot == 0)
 
     assert(sid.satisfiesProgress)
+    assert(sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
   }
 
@@ -72,10 +75,11 @@ class SlBtwTest extends AnyFlatSpec {
     val result2 = parser2.parseSID.run()
 
     assert(result2.isSuccess)
+    assert(result2.get.satisfiesConnectivity)
     assert(!result2.get.satisfiesEstablishment)
   }
 
-  it should "correctly compute progress and establishment for tll" in {
+  it should "correctly compute progress, connectivity and establishment for tll" in {
     val parser = new GslParser(
       """
         |tll(x1, x2, x3) <= (x1 -> <null, null, x3>) * (x1 = x2)
@@ -94,6 +98,32 @@ class SlBtwTest extends AnyFlatSpec {
     assert(tll.predroot == 0)
 
     assert(sid.satisfiesProgress)
+    assert(sid.satisfiesConnectivity)
+    assert(sid.satisfiesEstablishment)
+  }
+
+  it should "correctly determine that a variant of lseg does not satisfy connectivity" in {
+    val parser = new GslParser(
+      """
+        |lseg(x1,x2) <= x1 -> <x2>
+        |lseg(x1,x2) <= ∃y.x1 -> (x2) * lseg(y, x2)
+        |""".stripMargin)
+    val result = parser.parseSID.run()
+
+    assert(result.isSuccess)
+
+    val sid: SID = result.get
+
+    assert(sid.predicates.keySet == Set("lseg"))
+
+    val pred: Predicate = sid.predicates("lseg")
+
+    assert(pred.predroot == 0)
+    assert(pred.bodies.head.lref == Set(FreeVar("x2")))
+    assert(pred.bodies.tail.head.lref == Set(FreeVar("x2")))
+
+    assert(sid.satisfiesProgress)
+    assert(!sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
   }
 }
