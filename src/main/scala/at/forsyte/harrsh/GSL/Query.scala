@@ -5,5 +5,5 @@ package at.forsyte.harrsh.GSL
   *
   * Represent a satisfiability query which consists of a GSL formula and a corresponding SID
   */
-case class Query(formula: GslFormula, sid: SID) {
+case class Query(formula: GslFormula, sid: SID, fromEntailment: Boolean) {
 }

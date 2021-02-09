@@ -5,10 +5,7 @@ import at.forsyte.harrsh.GSL.GslFormula._
 import at.forsyte.harrsh.GSL.SID.Rule
 import at.forsyte.harrsh.GSL.{RuleException, SymbolicHeap}
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst}
-import org.parboiled2.{ErrorFormatter, ParseError}
 import org.scalatest.flatspec.AnyFlatSpec
-
-import scala.util.Failure
 
 class GslParserTest extends AnyFlatSpec {
 
@@ -60,9 +57,9 @@ class GslParserTest extends AnyFlatSpec {
 
   it should "accept well-formed symbolic heaps" in {
     val valid = List(
-      ("∃a b c. a = b * c -> <a, b> * call(a, b)", SymbolicHeap(3, Vector(PointsTo(_3, Vector(_1, _2))), Vector(PredicateCall("call", Vector(_1, _2))), Vector(Equality(_1, _2)), Seq())),
-      ("∃ aaa. aaa = a", SymbolicHeap(1, Seq(), Seq(), Seq(Equality(_1, FreeVar("a"))), Seq())),
-      ("a != b * test (  c)", SymbolicHeap(0, Seq(), Seq(PredicateCall("test", Seq(c))), Seq(), Seq(DisEquality(a, b))))
+      ("∃a b c. a = b * c -> <a, b> * call(a, b)", SymbolicHeap(Seq("a", "b", "c"), Vector(PointsTo(_3, Vector(_1, _2))), Vector(PredicateCall("call", Vector(_1, _2))), Vector(Equality(_1, _2)), Seq())),
+      ("∃ aaa. aaa = a", SymbolicHeap(Seq("aaa"), Seq(), Seq(), Seq(Equality(_1, FreeVar("a"))), Seq())),
+      ("a != b * test (  c)", SymbolicHeap(Seq(), Seq(), Seq(PredicateCall("test", Seq(c))), Seq(), Seq(DisEquality(a, b))))
     )
 
     for ((input, expected) <- valid) {
@@ -93,8 +90,8 @@ class GslParserTest extends AnyFlatSpec {
 
   it should "accept well-formed rules" in {
     val valid = List(
-      ("test(a,b) <= ∃c. a = c", Rule("test", Vector("a", "b"), SymbolicHeap(1, Vector(), Vector(), Vector(Equality(a, _1)), Vector()))),
-      ("test_2 <= ∃a c. a = c", Rule("test_2", Seq(), SymbolicHeap(2, Vector(), Vector(), Vector(Equality(_1, _2)), Seq())))
+      ("test(a,b) <= ∃c. a = c", Rule("test", Vector("a", "b"), SymbolicHeap(Seq("c"), Vector(), Vector(), Vector(Equality(a, _1)), Vector()))),
+      ("test_2 <= ∃a c. a = c", Rule("test_2", Seq(), SymbolicHeap(Seq("a", "c"), Vector(), Vector(), Vector(Equality(_1, _2)), Seq())))
     )
 
     for ((input, expected) <- valid) {
@@ -149,5 +146,22 @@ class GslParserTest extends AnyFlatSpec {
     val parser2 = new GslParser(query2)
 
     assert(parser2.parseQuery.run().isSuccess)
+
+    val query3 =
+      """
+        |query {
+        |  ls(x1, x2) |= nel(x1, x2)
+        |}
+        |sid {
+        |  ls(x1, x2) <= emp * x1 = x2
+        |  ls(x1, x2) <= ∃y. x1 -> y * ls(y,x2)
+        |  nel(x1, x2) <= x1 -> x2
+        |  nel(x1, x2) <= ∃y. x1 -> y * nel(y,x2)
+        |}
+        |""".stripMargin
+
+    val parser3 = new GslParser(query3)
+
+    assert(parser3.parseQuery.run().isSuccess)
   }
 }

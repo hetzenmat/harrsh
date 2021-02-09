@@ -24,7 +24,7 @@ import org.parboiled2._
 class GslParser(val input: ParserInput) extends Parser {
 
   def parseQuery: Rule1[Query] = rule {
-    _WhiteSpace ~ _FormulaSection ~ _SidSection ~ EOI ~> ((formula: GslFormula, sid: SID) => Query(formula, sid))
+    _WhiteSpace ~ _FormulaSection ~ _SidSection ~ EOI ~> ((tuple: (GslFormula, Boolean), sid: SID) => Query(tuple._1, sid, tuple._2))
   }
 
   def parseFormula: Rule1[GslFormula] = rule {
@@ -39,37 +39,49 @@ class GslParser(val input: ParserInput) extends Parser {
     _WhiteSpace ~ _SymbolicHeap ~ EOI
   }
 
-  private def _FormulaSection: Rule1[GslFormula] = rule {
-    ws("query") ~ ws('{') ~ _SeparatingConjunction ~ ws('}')
+  def parseSID: Rule1[SID] = rule {
+    _WhiteSpace ~ _Sid ~ EOI
   }
+
+  private def _FormulaSection: Rule1[(GslFormula, Boolean)] = rule {
+    ws("query") ~ ws('{') ~ _SeparatingConjunction ~ ws('}') ~> ((formula: GslFormula) => (formula, false)) |
+      ws("query") ~ ws('{') ~ _SeparatingConjunction ~ ws("|=") ~ _SeparatingConjunction ~ ws('}') ~> ((left: GslFormula, right: GslFormula) => (Negation(left, right), true))
+  }
+
 
   private def _SidSection: Rule1[SID] = rule {
-    ws("sid") ~ ws('{') ~ zeroOrMore(_Rule) ~ ws('}') ~> ((rules: Seq[SID.Rule]) => SID(rules))
+    ws("sid") ~ ws('{') ~ _Sid ~ ws('}')
   }
 
+  /*_*/
+  private def _Sid: Rule1[SID] = rule {
+    zeroOrMore(_Rule) ~> ((rules: Seq[SID.Rule]) => SID(rules))
+  }
+  /*_*/
+
   private def _Rule: Rule1[SID.Rule] = rule {
-    (_Identifier ~ ws("<=") ~ _SymbolicHeap ~> ((name: String, sh: SymbolicHeap) => SID.Rule(name, Seq.empty, sh))) |
-      (_Identifier ~ ws('(') ~ _QuantifiedVarList ~ ws(')') ~ ws("<=") ~ _SymbolicHeap ~>
-        ((name: String, args: Seq[String], sh: SymbolicHeap) => SID.Rule(name, args, sh)))
+    _Identifier ~ ws("<=") ~ _SymbolicHeap ~> ((name: String, sh: SymbolicHeap) => SID.Rule(name, Seq.empty, sh)) |
+      _Identifier ~ ws('(') ~ _QuantifiedVarList ~ ws(')') ~ ws("<=") ~ _SymbolicHeap ~>
+        ((name: String, args: Seq[String], sh: SymbolicHeap) => SID.Rule(name, args, sh))
   }
 
   private def _SymbolicHeap: Rule1[SymbolicHeap] = rule {
-    (ws('∃') ~ oneOrMore(_Identifier) ~ ws('.') ~ oneOrMore(_SymbolicHeapAtom).separatedBy(ws('*')) ~>
-      ((vars: Seq[String], atoms: Seq[Atom]) => SymbolicHeap.buildSymbolicHeap(vars, atoms))) |
-      (oneOrMore(_SymbolicHeapAtom).separatedBy(ws('*')) ~> ((atoms: Seq[Atom]) => SymbolicHeap.buildSymbolicHeap(Seq.empty, atoms)))
+    ws('∃') ~ oneOrMore(_Identifier) ~ ws('.') ~ oneOrMore(_SymbolicHeapAtom).separatedBy(ws('*')) ~>
+      ((vars: Seq[String], atoms: Seq[Atom]) => SymbolicHeap.buildSymbolicHeap(vars, atoms)) |
+      oneOrMore(_SymbolicHeapAtom).separatedBy(ws('*')) ~> ((atoms: Seq[Atom]) => SymbolicHeap.buildSymbolicHeap(Seq.empty, atoms))
   }
 
   private def _SymbolicHeapAtom: Rule1[Atom] = rule {
-    _PointsTo | _PredicateCall | _Equality | _DisEquality | _Emp
+    _PointsTo | _PredicateCall | _Equality | _DisEquality | _Emp | ws('(') ~ _SymbolicHeapAtom ~ ws(')')
   }
 
   private def _SeparatingConjunction: Rule1[GslFormula] = rule {
-    (_Disjunction ~ ws('*') ~ _Disjunction ~> ((left, right) => SeparatingConjunction(left, right))) |
+    _Disjunction ~ ws('*') ~ _Disjunction ~> ((left, right) => SeparatingConjunction(left, right)) |
       _Disjunction
   }
 
   private def _Disjunction: Rule1[GslFormula] = rule {
-    (_Guarded ~ ws("""\/""") ~ _Guarded ~> ((left, right) => Disjunction(left, right))) |
+    _Guarded ~ ws("""\/""") ~ _Guarded ~> ((left, right) => Disjunction(left, right)) |
       _Guarded
   }
 
@@ -82,8 +94,8 @@ class GslParser(val input: ParserInput) extends Parser {
   }
 
   private def _UnguardedMagicWand: Rule1[(GslFormula, GslFormula)] = rule {
-    (ws('(') ~ _StandardConjunction ~ ws("-*") ~ _StandardConjunction ~ ws(")") ~> ((left, right) => (left, right))) |
-      (ws('(') ~ _UnguardedMagicWand ~ ws(')'))
+    ws('(') ~ _StandardConjunction ~ ws("-*") ~ _StandardConjunction ~ ws(")") ~> ((left, right) => (left, right)) |
+      ws('(') ~ _UnguardedMagicWand ~ ws(')')
   }
 
   private def _MagicWandRight: Rule1[GslFormula] = rule {
@@ -99,8 +111,8 @@ class GslParser(val input: ParserInput) extends Parser {
   }
 
   private def _UnguardedSeptraction: Rule1[(GslFormula, GslFormula)] = rule {
-    (ws('(') ~ _StandardConjunction ~ (ws("-o") | ws("-⊛")) ~ _StandardConjunction ~ ws(')') ~> ((left, right) => (left, right))) |
-      (ws('(') ~ _UnguardedSeptraction ~ ws(')'))
+    ws('(') ~ _StandardConjunction ~ (ws("-o") | ws("-⊛")) ~ _StandardConjunction ~ ws(')') ~> ((left, right) => (left, right)) |
+      ws('(') ~ _UnguardedSeptraction ~ ws(')')
   }
 
   private def _SeptractionRight: Rule1[GslFormula] = rule {
@@ -124,7 +136,7 @@ class GslParser(val input: ParserInput) extends Parser {
   }
 
   private def _StandardConjunction: Rule1[GslFormula] = rule {
-    (_Atom ~ _And ~ _Atom ~> ((left, right) => GslFormula.StandardConjunction(left, right))) |
+    _Atom ~ _And ~ _Atom ~> ((left, right) => GslFormula.StandardConjunction(left, right)) |
       _Atom
   }
 
@@ -136,7 +148,7 @@ class GslParser(val input: ParserInput) extends Parser {
       _DisEquality |
       _PointsTo |
       _PredicateCall |
-      (ws('(') ~ _SeparatingConjunction ~ ws(')'))
+      ws('(') ~ _SeparatingConjunction ~ ws(')')
   }
 
   private def _Emp: Rule1[Atom.Emp] = rule(ws("emp") ~ push(GslFormula.Atom.Emp()))
@@ -159,16 +171,19 @@ class GslParser(val input: ParserInput) extends Parser {
   }
 
   private def _ParenList: Rule1[Seq[Var]] = rule {
-    (ws('(') ~ _VarList ~ ')') | (ws('<') ~ _VarList ~ ws('>'))
+    ws('(') ~ _VarList ~ ws(')') | ws('<') ~ _VarList ~ ws('>')
   }
 
   private def _VarList: Rule1[Seq[Var]] = rule {
     oneOrMore(_Var).separatedBy(ws(','))
   }
 
+  /*_*/
   private def _QuantifiedVarList: Rule1[Seq[String]] = rule {
     zeroOrMore(_QuantifiedVar).separatedBy(ws(','))
   }
+
+  /*_*/
 
   private def _QuantifiedVar: Rule1[String] = rule {
     (!("null" | "nil")) ~ _Var ~> ((v: Var) => v.toString)
