@@ -1,7 +1,7 @@
 package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom.PredicateCall
-import at.forsyte.harrsh.GSL.SID.establishedResultSuccess
+import at.forsyte.harrsh.GSL.SID.{Predicate, establishedResultSuccess}
 import at.forsyte.harrsh.heapautomata.instances.TrackingAutomata
 import at.forsyte.harrsh.refinement.RefinementAlgorithms
 import at.forsyte.harrsh.seplog.{FreeVar, Var}
@@ -12,22 +12,22 @@ import at.forsyte.harrsh.seplog.inductive.{PointsTo, PredCall, RichSid, SepLogAt
   *
   * Represent an SID
   */
-case class SID(predicates: Map[String, SID.Predicate]) {
+case class SID(predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
   def satisfiesProgress(pred: String): Boolean =
     predicates.contains(pred) && predicates(pred).predroot >= 0
 
-  def satisfiesProgress: Boolean =
-    predicates.keys.forall(satisfiesProgress)
+  lazy val satisfiesProgress: Boolean =
+    predicates.keys.forall(p => satisfiesProgress(p))
 
   def satisfiesConnectivity(pred: String): Boolean =
     predicates.contains(pred) && predicates(pred).bodies.forall(body => {
       body.calls.forall({ case PredicateCall(name, args) => predicates.contains(name) && body.lref.contains(args(predicates(name).predroot)) })
     })
 
-  def satisfiesConnectivity: Boolean =
-    predicates.keys.forall(satisfiesConnectivity)
+  lazy val satisfiesConnectivity: Boolean =
+    predicates.keys.forall(p => satisfiesConnectivity(p))
 
-  def satisfiesEstablishment: Boolean = {
+  lazy val satisfiesEstablishment: Boolean = {
     predicates.keys.forall(p => {
       val sid = toRootedSid(p)
       println(sid)
@@ -37,6 +37,23 @@ case class SID(predicates: Map[String, SID.Predicate]) {
       RefinementAlgorithms.onTheFlyRefinementWithEmptinessCheck(sid, TrackingAutomata.establishmentAutomaton) == establishedResultSuccess &&
         RefinementAlgorithms.onTheFlyRefinementWithEmptinessCheck(sid, TrackingAutomata.nonEstablishmentAutomaton) != establishedResultSuccess
     })
+  }
+
+  def toPointerClosedSID: Either[String, PointerClosedSID] = {
+    if (satisfiesProgress) {
+      if (satisfiesConnectivity) {
+        if (satisfiesEstablishment) {
+          Right(PointerClosedSID(predicates.map({
+            case (name, Predicate(predName, args, bodies)) =>
+              (name, Predicate(predName, args, bodies.map(_.toPointerClosedSymbolicHeap)))
+          })))
+        }
+        else
+          Left("SID does not satisfy establishment")
+      } else
+        Left("SID does not satisfy connectivity")
+    } else
+      Left("SID does not satisfy progress")
   }
 
   private def toRootedSid(startPred: String): RichSid = {
@@ -66,18 +83,26 @@ case class SID(predicates: Map[String, SID.Predicate]) {
   }
 }
 
+case class PointerClosedSID(predicates: Map[String, SID.Predicate[PointerClosedSymbolicHeap]]) {
+}
+
 object SID {
 
   private val establishedResultSuccess: Boolean = false
 
-  case class Predicate(name: String, args: Seq[String], bodies: Seq[SymbolicHeap]) {
+  case class Predicate[T <: AbstractSymbolicHeap](name: String, args: Seq[String], bodies: Seq[T]) {
 
     /**
       * If the predicate satisfies progress, predroot >= 0 and -1 otherwise.
       */
     def predroot: Int = {
       args.indices.find(
-        i => bodies.forall(h => h.spatial.size == 1 && h.spatial.head.from == FreeVar(args(i)))
+        i => bodies.forall(h => h match {
+          case sh: SymbolicHeap => sh.spatial.size == 1 && sh.spatial.head.from == FreeVar(args(i))
+          case sh: PointerClosedSymbolicHeap => val ptr = sh.calls.filter(_.pointsTo)
+            if (ptr.size != 1) false
+            else ptr.head.args.head == FreeVar(args(i))
+        })
       ) match {
         case None => -1
         case Some(i) => i
@@ -86,7 +111,6 @@ object SID {
 
     def predrootVar: Var =
       FreeVar(args(predroot))
-
   }
 
   case class Rule(name: String, args: Seq[String], body: SymbolicHeap) {
@@ -96,12 +120,12 @@ object SID {
     if (!body.freeVars.map(_.toString).subsetOf(args.toSet))
       throw RuleException("Free variables are not subset of rule arguments")
 
-    if ("^ptr[0-9]+$".r.matches(name))
+    if ("^ptr[1-9][0-9]+$".r.matches(name))
       throw RuleException("Reserved name ptr_k was used")
   }
 
   def apply(rules: Seq[Rule]): SID =
-    SID(rules.foldLeft(Map.empty[String, Predicate]) {
+    SID(rules.foldLeft(Map.empty[String, Predicate[SymbolicHeap]]) {
       (map, rule) =>
         map.updatedWith(rule.name) {
           case None => Some(Predicate(rule.name, rule.args, Seq(rule.body)))

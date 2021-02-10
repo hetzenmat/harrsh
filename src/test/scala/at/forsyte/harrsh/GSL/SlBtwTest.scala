@@ -1,5 +1,6 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL.GslFormula.Atom.PredicateCall
 import at.forsyte.harrsh.GSL.SID.Predicate
 import at.forsyte.harrsh.parsers.GslParser
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar}
@@ -20,7 +21,7 @@ class SlBtwTest extends AnyFlatSpec {
 
     assert(sid.predicates.keySet == Set("lseg"))
 
-    val pred: Predicate = sid.predicates("lseg")
+    val pred: Predicate[SymbolicHeap] = sid.predicates("lseg")
 
     assert(pred.predroot == 0)
     assert(pred.bodies.head.lref == Set(FreeVar("x2")))
@@ -29,6 +30,16 @@ class SlBtwTest extends AnyFlatSpec {
     assert(sid.satisfiesProgress)
     assert(sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
+
+    sid.toPointerClosedSID match {
+      case Left(_) => fail()
+      case Right(pcSID) => assert(pcSID ==
+        PointerClosedSID(Map("lseg" ->
+          Predicate("lseg",
+            Vector("x1", "x2"),
+            List(PointerClosedSymbolicHeap(List(), Vector(PredicateCall("ptr1", List(FreeVar("x1"), FreeVar("x2")))), Vector(), Vector()),
+              PointerClosedSymbolicHeap(Vector("y"), Vector(PredicateCall("lseg", Vector(BoundVar(1), FreeVar("x2"))), PredicateCall("ptr1", List(FreeVar("x1"), BoundVar(1)))), Vector(), Vector()))))))
+    }
   }
 
   "SID" should "correctly compute progress, connectivity and establishment for odd/even" in {
@@ -46,8 +57,8 @@ class SlBtwTest extends AnyFlatSpec {
 
     assert(sid.predicates.keySet == Set("odd", "even"))
 
-    val odd: Predicate = sid.predicates("odd")
-    val even: Predicate = sid.predicates("even")
+    val odd: Predicate[SymbolicHeap] = sid.predicates("odd")
+    val even: Predicate[SymbolicHeap] = sid.predicates("even")
 
     assert(odd.predroot == 0)
     assert(even.predroot == 0)
@@ -55,6 +66,8 @@ class SlBtwTest extends AnyFlatSpec {
     assert(sid.satisfiesProgress)
     assert(sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
+
+    assert(sid.toPointerClosedSID.isRight)
   }
 
   it should "determine that lists with dangling pointers are not established" in {
@@ -67,6 +80,7 @@ class SlBtwTest extends AnyFlatSpec {
 
     assert(result.isSuccess)
     assert(!result.get.satisfiesEstablishment)
+    assert(result.get.toPointerClosedSID.isLeft)
 
     val parser2 = new GslParser(
       """
@@ -77,6 +91,8 @@ class SlBtwTest extends AnyFlatSpec {
     assert(result2.isSuccess)
     assert(result2.get.satisfiesConnectivity)
     assert(!result2.get.satisfiesEstablishment)
+
+    assert(result2.get.toPointerClosedSID.isLeft)
   }
 
   it should "correctly compute progress, connectivity and establishment for tll" in {
@@ -93,13 +109,15 @@ class SlBtwTest extends AnyFlatSpec {
 
     assert(sid.predicates.keySet == Set("tll"))
 
-    val tll: Predicate = sid.predicates("tll")
+    val tll: Predicate[SymbolicHeap] = sid.predicates("tll")
 
     assert(tll.predroot == 0)
 
     assert(sid.satisfiesProgress)
     assert(sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
+
+    assert(sid.toPointerClosedSID.isRight)
   }
 
   it should "correctly determine that a variant of lseg does not satisfy connectivity" in {
@@ -116,7 +134,7 @@ class SlBtwTest extends AnyFlatSpec {
 
     assert(sid.predicates.keySet == Set("lseg"))
 
-    val pred: Predicate = sid.predicates("lseg")
+    val pred: Predicate[SymbolicHeap] = sid.predicates("lseg")
 
     assert(pred.predroot == 0)
     assert(pred.bodies.head.lref == Set(FreeVar("x2")))
@@ -125,5 +143,7 @@ class SlBtwTest extends AnyFlatSpec {
     assert(sid.satisfiesProgress)
     assert(!sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
+
+    assert(sid.toPointerClosedSID.isLeft)
   }
 }

@@ -54,6 +54,8 @@ object GslFormula {
       override def substitute(substitution: Map[Var, Var]): PredicateCall = PredicateCall(pred, args.map(v => substitution.getOrElse(v, v)))
 
       override def vars: Set[Var] = args.toSet
+
+      def pointsTo: Boolean = "^ptr[1-9][0-9]+$".r.matches(pred)
     }
 
   }

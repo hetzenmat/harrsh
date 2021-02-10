@@ -4,16 +4,18 @@ import GslFormula.Atom._
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
 
+sealed abstract class AbstractSymbolicHeap()
+
 /**
   * Created by Matthias Hetzenberger on 2021-02-08
   *
   * Represent a symbolic heap
   */
-case class SymbolicHeap(quantifiedVars: Seq[String],
-                        spatial: Seq[PointsTo],
-                        calls: Seq[PredicateCall],
-                        equalities: Seq[Equality],
-                        disEqualities: Seq[DisEquality]) {
+final case class SymbolicHeap(quantifiedVars: Seq[String],
+                              spatial: Seq[PointsTo],
+                              calls: Seq[PredicateCall],
+                              equalities: Seq[Equality],
+                              disEqualities: Seq[DisEquality]) extends AbstractSymbolicHeap {
   val allVars: Set[Var] = (spatial ++ calls ++ equalities ++ disEqualities).foldLeft(Set.empty[Var]) { (set, atom) =>
     set.union(atom.vars)
   }
@@ -22,6 +24,18 @@ case class SymbolicHeap(quantifiedVars: Seq[String],
 
   val lalloc: Set[Var] = spatial.map(_.from).toSet
   val lref: Set[Var] = spatial.flatMap(_.to).toSet
+
+  def toPointerClosedSymbolicHeap: PointerClosedSymbolicHeap =
+    PointerClosedSymbolicHeap(quantifiedVars,
+      calls ++ spatial.map({ case PointsTo(from, to) => PredicateCall("ptr" + to.size, Seq(from) ++ to) }),
+      equalities,
+      disEqualities)
+}
+
+final case class PointerClosedSymbolicHeap(quantifiedVars: Seq[String],
+                                           calls: Seq[PredicateCall],
+                                           equalities: Seq[Equality],
+                                           disEqualities: Seq[DisEquality]) extends AbstractSymbolicHeap {
 }
 
 object SymbolicHeap {
