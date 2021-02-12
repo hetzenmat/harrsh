@@ -1,6 +1,6 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.seplog.Var
+import at.forsyte.harrsh.seplog.{BoundVar, Var}
 
 /**
   * Created by Matthias Hetzenberger on 2021-02-07
@@ -17,6 +17,7 @@ object GslFormula {
 
   sealed abstract class Atom extends GslFormula {
     type T = Atom
+
     def vars: Set[Var]
   }
 
@@ -55,7 +56,13 @@ object GslFormula {
 
       override def vars: Set[Var] = args.toSet
 
+      def boundVars: Set[BoundVar] = args.collect({ case v: BoundVar => v }).toSet
+
       def pointsTo: Boolean = "^ptr[1-9][0-9]+$".r.matches(pred)
+
+      override def toString: String = {
+        pred + args.mkString("(", ", ", ")")
+      }
     }
 
   }
