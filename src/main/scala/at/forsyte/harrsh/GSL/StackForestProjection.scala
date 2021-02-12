@@ -4,6 +4,7 @@ import at.forsyte.harrsh.GSL.StackForestProjection.boundVariables
 import at.forsyte.harrsh.seplog.{BoundVar, Var}
 
 import scala.collection.SortedSet
+import scala.runtime.ScalaRunTime
 
 /**
   * Created by Matthias Hetzenberger on 2021-02-12
@@ -14,19 +15,17 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
 
   val quantifiedLength: Int = guardedExistentials.size + guardedUniversals.size
 
-  if (guardedExistentials.intersect(guardedUniversals).nonEmpty)
-    throw new IllegalArgumentException("No duplicates between quantifier blocks allowed")
+  require(guardedExistentials.intersect(guardedUniversals).isEmpty,
+          "No duplicates between quantifier blocks allowed")
 
-  if (boundVariables(formula) != guardedExistentials.union(guardedUniversals)) {
+  require(boundVariables(formula) == guardedExistentials.union(guardedUniversals),
+          "Set of bound variables is not equal to set of quantified variables")
 
-    println(boundVariables(formula))
-    throw new IllegalArgumentException("Set of bound variables is not equal to set of quantified variables")
-  }
+  require(Utils.isSorted(formula), "Tree projections have to be sorted")
 
-  if (!Utils.isSorted(formula)) {
-    println(this)
-    throw new IllegalArgumentException("Tree projections have to be sorted")
-  }
+  require(guardedExistentials.map(_.index) == SortedSet.from(1 to guardedExistentials.size) &&
+            guardedUniversals.map(_.index) == SortedSet.from((1 to guardedUniversals.size).map(_ + guardedExistentials.size)),
+          "Quantified variables must have consecutive indices starting with 1")
 
   def replaceQuantifiedVariables(replacements: Seq[BoundVar]): Seq[TreeProjection] = {
     if (guardedExistentials.size + guardedUniversals.size != replacements.size)
@@ -37,6 +36,38 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
 
     val subst: Map[Var, Var] = (guardedExistentials.zip(replEx) ++ guardedUniversals.zip(replUn)).toMap
     formula.map({ case TreeProjection(calls, call) => TreeProjection(calls.map(_.substitute(subst)), call.substitute(subst)) }).sorted
+  }
+
+  def derivableSet: Set[StackForestProjection] = {
+    oneStepDerivableSet ++ oneStepDerivableSet.flatMap(_.derivableSet)
+  }
+
+  /**
+    * Compute the set of all one-step derivable projections wrt. to the generalized modus ponens rule (Definition 7.29)
+    */
+  def oneStepDerivableSet: Set[StackForestProjection] = {
+    val formulaWithIndex = formula.zipWithIndex
+    (for (projs <- formulaWithIndex;
+          i = projs._2;
+          f = projs._1) yield {
+      formulaWithIndex.flatMap({
+        case (TreeProjection(calls, rootpred), j) if i != j =>
+          val ix = calls.indexOf(f.rootpred)
+          if (ix == -1)
+            None
+          else {
+            val newProj = TreeProjection((calls.zipWithIndex.collect({ case (v, k) if k != ix => v }) ++ f.allholepreds).sorted,
+                                         rootpred)
+
+            val newFormulas = formulaWithIndex.collect({ case (v, k) if k != i && k != j => v }) :+ newProj
+            val boundVars = boundVariables(newFormulas)
+            Some(StackForestProjection.from(guardedExistentials.intersect(boundVars),
+                                            guardedUniversals.intersect(boundVars),
+                                            newFormulas))
+          }
+        case _ => None
+      }).toSet
+    }).flatten.toSet
   }
 
   override def toString: String = {
@@ -57,6 +88,10 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
       case _ => false
     }
   }
+
+  override def hashCode(): Int = {
+    ScalaRunTime._hashCode((guardedExistentials, guardedUniversals, formula)) // System.identityHashCode()
+  }
 }
 
 object StackForestProjection {
@@ -69,6 +104,10 @@ object StackForestProjection {
     formula.flatMap({ case TreeProjection(calls, call) =>
       calls.flatMap(_.boundVars) ++ call.boundVars
     }).toSet
+  }
+
+  def composition(left: StackForestProjection, right: StackForestProjection): Set[StackForestProjection] = {
+    allRescopings(left, right).flatMap(sfp => sfp.derivableSet)
   }
 
   def allRescopings(left: StackForestProjection, right: StackForestProjection): Set[StackForestProjection] = {
