@@ -7,7 +7,7 @@ import at.forsyte.harrsh.seplog.{BoundVar, Var}
   *
   * ADT to model GSL formulae
   */
-sealed abstract class GslFormula {
+sealed abstract trait GslFormula {
   type T <: GslFormula
 
   def substitute(substitution: Map[Var, Var]): T
@@ -15,7 +15,7 @@ sealed abstract class GslFormula {
 
 object GslFormula {
 
-  sealed abstract class Atom extends GslFormula {
+  sealed abstract trait Atom extends GslFormula {
     type T = Atom
 
     def vars: Set[Var]
@@ -51,7 +51,7 @@ object GslFormula {
       override def vars: Set[Var] = to.prepended(from).toSet
     }
 
-    final case class PredicateCall(pred: String, args: Seq[Var]) extends Atom {
+    final case class PredicateCall(pred: String, args: Seq[Var]) extends Atom with Ordered[PredicateCall] {
       override def substitute(substitution: Map[Var, Var]): PredicateCall = PredicateCall(pred, args.map(v => substitution.getOrElse(v, v)))
 
       override def vars: Set[Var] = args.toSet
@@ -62,6 +62,14 @@ object GslFormula {
 
       override def toString: String = {
         pred + args.mkString("(", ", ", ")")
+      }
+
+      override def compare(that: PredicateCall): Int = {
+        val res = pred.compare(that.pred)
+        if (res == 0)
+          Utils.compareLexicographically(args, that.args)
+        else
+          res
       }
     }
 
