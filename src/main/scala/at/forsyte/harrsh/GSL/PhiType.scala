@@ -11,6 +11,8 @@ case class PhiType(sid: SID, projections: Set[StackForestProjection]) {
                                                    .map(sid.predicates)
                                                    .map(_.predroot))
 
+  def freeVars: Set[FreeVar] = projections.flatMap(_.freeVars)
+
   def rename(x: Seq[Var], y: Seq[Var], ac: AliasingConstraint): Option[PhiType] = {
     if (x.length == y.length && x.length == x.toSet.size && y.toSet.subsetOf(ac.domain)) {
       val yMax = y.map(ac.largestAlias)
@@ -23,6 +25,10 @@ case class PhiType(sid: SID, projections: Set[StackForestProjection]) {
 
   def forget(ac: AliasingConstraint, x: FreeVar): PhiType = {
     PhiType(sid, projections.map(_.forget(ac, x)).filter(_.isDelimited(sid)))
+  }
+
+  def extend(x: FreeVar): PhiType = {
+    PhiType(sid, projections union projections.flatMap(_.extend(x)))
   }
 }
 

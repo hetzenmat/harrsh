@@ -105,7 +105,7 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
 
         val subst = guardedUniversals.zip(newUniversals).toMap.asInstanceOf[Map[Var, Var]].updated(x, bound)
 
-        new StackForestProjection(guardedExistentials + bound, newUniversals, formula.map(_.substitute(subst)))
+        new StackForestProjection(guardedExistentials.union(Set(bound)), newUniversals, formula.map(_.substitute(subst)))
       } else {
         val nextLargest = ac(x).diff(Set(x)).max
         val subst: Map[Var, Var] = Map((x, nextLargest))
@@ -114,6 +114,20 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
     } else {
       this
     }
+  }
+
+  def extend(x: FreeVar): Set[StackForestProjection] = {
+    require(!freeVars.contains(x))
+
+    guardedUniversals.unsorted.map(bv => {
+      val newUniversals = guardedUniversals.diff(Set(bv))
+      val subst: Map[Var, Var] = (bv.index + 1 to quantifiedLength).zip(LazyList.from(bv.index))
+                                                                   .map(t => (BoundVar(t._1), BoundVar(t._2)))
+                                                                   .toMap[Var, Var]
+                                                                   .updated(bv, x)
+
+      new StackForestProjection(guardedExistentials, newUniversals, formula.map(_.substitute(subst)))
+    }).toSet
   }
 
   override def toString: String = {
