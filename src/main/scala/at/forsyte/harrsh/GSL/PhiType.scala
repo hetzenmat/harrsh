@@ -20,6 +20,10 @@ case class PhiType(sid: SID, projections: Set[StackForestProjection]) {
       None
     }
   }
+
+  def forget(ac: AliasingConstraint, x: FreeVar): PhiType = {
+    PhiType(sid, projections.map(_.forget(ac, x)).filter(_.isDelimited(sid)))
+  }
 }
 
 object PhiType {
