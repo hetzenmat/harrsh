@@ -51,13 +51,13 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
     * Determine if the projection is delimited wrt. to the given SID (Definition 8.2).
     */
   def isDelimited(sid: SID): Boolean = {
-    val cond1 = allCalls.forall(call => freeVars.contains(sid.predicates(call.pred).predrootVar))
+    val cond1 = allCalls.forall(call => freeVars.contains(sid.predicates(call.pred).predroot))
     if (!cond1) return false
 
     val allPredCallsLeft = formula.flatMap(_.allholepreds)
     val allVars = freeVars.asInstanceOf[Set[Var]].union(boundVars.asInstanceOf[Set[Var]])
 
-    allVars.forall(variable => allPredCallsLeft.count(p => sid.predicates(p.pred).predrootVar == variable) <= 1)
+    allVars.forall(variable => allPredCallsLeft.count(p => sid.predicates(p.pred).predroot == variable) <= 1)
   }
 
   /**
@@ -86,6 +86,15 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
         case _ => None
       }).toSet
     }).flatten.toSet
+  }
+
+  def substitute(subst: Map[Var, Var]): StackForestProjection = {
+    val subst2 = subst.filter({
+      case (_: BoundVar, _) => false
+      case _ => true
+    })
+
+    new StackForestProjection(guardedExistentials, guardedUniversals, formula.map(_.substitute(subst2)))
   }
 
   override def toString: String = {
@@ -159,6 +168,10 @@ object StackForestProjection {
 case class TreeProjection(allholepreds: Seq[GslFormula.Atom.PredicateCall], rootpred: GslFormula.Atom.PredicateCall) extends Ordered[TreeProjection] {
   if (!Utils.isSorted(allholepreds))
     throw new IllegalArgumentException("allholepreds have to be sorted")
+
+  def substitute(subst: Map[Var, Var]): TreeProjection = {
+    TreeProjection(allholepreds.map(_.substitute(subst)), rootpred.substitute(subst))
+  }
 
   override def compare(that: TreeProjection): Int = {
     val res = Utils.compareLexicographically(allholepreds, that.allholepreds)

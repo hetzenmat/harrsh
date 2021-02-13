@@ -23,7 +23,7 @@ class SlBtwTest extends AnyFlatSpec {
 
     val pred: Predicate[SymbolicHeap] = sid.predicates("lseg")
 
-    assert(pred.predroot == 0)
+    assert(pred.predrootIndex == 0)
     assert(pred.bodies.head.lref == Set(FreeVar("x2")))
     assert(pred.bodies.tail.head.lref == Set(BoundVar(1)))
 
@@ -60,8 +60,8 @@ class SlBtwTest extends AnyFlatSpec {
     val odd: Predicate[SymbolicHeap] = sid.predicates("odd")
     val even: Predicate[SymbolicHeap] = sid.predicates("even")
 
-    assert(odd.predroot == 0)
-    assert(even.predroot == 0)
+    assert(odd.predrootIndex == 0)
+    assert(even.predrootIndex == 0)
 
     assert(sid.satisfiesProgress)
     assert(sid.satisfiesConnectivity)
@@ -111,7 +111,7 @@ class SlBtwTest extends AnyFlatSpec {
 
     val tll: Predicate[SymbolicHeap] = sid.predicates("tll")
 
-    assert(tll.predroot == 0)
+    assert(tll.predrootIndex == 0)
 
     assert(sid.satisfiesProgress)
     assert(sid.satisfiesConnectivity)
@@ -136,7 +136,7 @@ class SlBtwTest extends AnyFlatSpec {
 
     val pred: Predicate[SymbolicHeap] = sid.predicates("lseg")
 
-    assert(pred.predroot == 0)
+    assert(pred.predrootIndex == 0)
     assert(pred.bodies.head.lref == Set(FreeVar("x2")))
     assert(pred.bodies.tail.head.lref == Set(FreeVar("x2")))
 

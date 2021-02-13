@@ -14,14 +14,14 @@ import at.forsyte.harrsh.seplog.inductive.{PointsTo, PredCall, RichSid, SepLogAt
   */
 case class SID(predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
   def satisfiesProgress(pred: String): Boolean =
-    predicates.contains(pred) && predicates(pred).predroot >= 0
+    predicates.contains(pred) && predicates(pred).predrootIndex >= 0
 
   lazy val satisfiesProgress: Boolean =
     predicates.keys.forall(p => satisfiesProgress(p))
 
   def satisfiesConnectivity(pred: String): Boolean =
     predicates.contains(pred) && predicates(pred).bodies.forall(body => {
-      body.calls.forall({ case PredicateCall(name, args) => predicates.contains(name) && body.lref.contains(args(predicates(name).predroot)) })
+      body.calls.forall({ case PredicateCall(name, args) => predicates.contains(name) && body.lref.contains(args(predicates(name).predrootIndex)) })
     })
 
   lazy val satisfiesConnectivity: Boolean =
@@ -79,7 +79,7 @@ case class SID(predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
 
     SidFactory.makeRootedSid(startPred,
                              "",
-                             predicates.map({ case (predName, pred) => (predName, FreeVar(pred.args(pred.predroot))) }),
+                             predicates.map({ case (predName, pred) => (predName, FreeVar(pred.args(pred.predrootIndex))) }),
                              ruleTuples: _*)
   }
 }
@@ -94,9 +94,9 @@ object SID {
   case class Predicate[T <: AbstractSymbolicHeap](name: String, args: Seq[String], bodies: Seq[T]) {
 
     /**
-      * If the predicate satisfies progress, predroot >= 0 and -1 otherwise.
+      * If the predicate satisfies progress, predrootIndex >= 0 and -1 otherwise.
       */
-    def predroot: Int = {
+    def predrootIndex: Int = {
       args.indices.find(
         i => bodies.forall(h => h match {
           case sh: SymbolicHeap => sh.spatial.size == 1 && sh.spatial.head.from == FreeVar(args(i))
@@ -110,8 +110,8 @@ object SID {
       }
     }
 
-    def predrootVar: FreeVar =
-      FreeVar(args(predroot))
+    def predroot: FreeVar =
+      FreeVar(args(predrootIndex))
   }
 
   case class Rule(name: String, args: Seq[String], body: SymbolicHeap) {

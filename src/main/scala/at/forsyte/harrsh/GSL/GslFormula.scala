@@ -62,6 +62,8 @@ object GslFormula {
 
       def pointsTo: Boolean = "^ptr[1-9][0-9]+$".r.matches(pred)
 
+      def predroot(sid: SID): FreeVar = sid.predicates(pred).predroot
+
       override def toString: String = {
         pred + args.mkString("(", ", ", ")")
       }
