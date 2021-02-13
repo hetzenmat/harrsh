@@ -3,12 +3,23 @@ package at.forsyte.harrsh.GSL
 import at.forsyte.harrsh.seplog.Var
 
 import scala.collection.SortedSet
+import scala.collection.mutable.ListBuffer
 
-case class AliasingConstraint(domain: SortedSet[Var], partition: Map[Var, Var]) {
-  if (domain != partition.keySet)
-    throw new IllegalArgumentException("Inconsistent domains")
+case class AliasingConstraint(partition: Seq[SortedSet[Var]], eqClass: Map[Var, Int]) {
 
-  def =:=(t: (Var, Var)): Boolean = domain.contains(t._1) && domain.contains(t._2) && partition(t._1) == partition(t._2)
+  def domain: Set[Var] = eqClass.keySet
+
+  require(domain.size == partition.map(_.size).sum, "Partition is not valid")
+
+  require(eqClass.values.forall(i => i >= 0 && i < partition.length), "Index out of bounds")
+
+  require(eqClass.forall({ case (k, v) => partition(v).contains(k) }), "Equivalence mapping is not valid")
+
+  def largestAlias(v: Var): Var = this (v).max
+
+  def apply(v: Var): SortedSet[Var] = partition(eqClass(v))
+
+  def =:=(t: (Var, Var)): Boolean = eqClass(t._1) == eqClass(t._2)
 
   def =/=(t: (Var, Var)): Boolean = !(this =:= t)
 }
@@ -16,7 +27,25 @@ case class AliasingConstraint(domain: SortedSet[Var], partition: Map[Var, Var]) 
 object AliasingConstraint {
 
   def allAliasingConstraints(vars: Set[Var]): LazyList[AliasingConstraint] = {
-    allPartitions(vars).map(p => AliasingConstraint(SortedSet.from(vars), p))
+    allPartitions(vars).map(eqClass => {
+
+      val buffer = ListBuffer.empty[collection.mutable.Set[Var]]
+      val map = collection.mutable.Map.empty[Var, Int]
+      eqClass.foreach({ case (variable, repr) =>
+
+        map.get(repr) match {
+          case Some(index) =>
+            buffer(index).add(variable)
+            map.update(variable, index)
+          case None =>
+            buffer.addOne(collection.mutable.Set(variable, repr))
+            map.update(repr, buffer.size - 1)
+            map.update(variable, buffer.size - 1)
+        }
+      })
+
+      AliasingConstraint(buffer.map(s => collection.immutable.SortedSet.from(s)).toSeq, map.toMap)
+    })
   }
 
   def mapRepresentationToSet[A](partition: Map[A, A]): Set[Set[A]] = {

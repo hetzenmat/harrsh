@@ -97,6 +97,25 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
     new StackForestProjection(guardedExistentials, guardedUniversals, formula.map(_.substitute(subst2)))
   }
 
+  def forget(ac: AliasingConstraint, x: FreeVar): StackForestProjection = {
+    if (freeVars.contains(x)) {
+      if (ac(x) == SortedSet(x)) {
+        val bound = BoundVar(guardedExistentials.size + 1)
+        val newUniversals = guardedUniversals.map(u => BoundVar(u.index + 1))
+
+        val subst = guardedUniversals.zip(newUniversals).toMap.asInstanceOf[Map[Var, Var]].updated(x, bound)
+
+        new StackForestProjection(guardedExistentials + bound, newUniversals, formula.map(_.substitute(subst)))
+      } else {
+        val nextLargest = ac(x).diff(Set(x)).max
+        val subst: Map[Var, Var] = Map((x, nextLargest))
+        new StackForestProjection(guardedExistentials, guardedUniversals, formula.map(_.substitute(subst)))
+      }
+    } else {
+      this
+    }
+  }
+
   override def toString: String = {
     (if (guardedExistentials.nonEmpty) guardedExistentials.mkString("∃ ", " ", ". ") else "") +
       (if (guardedUniversals.nonEmpty) guardedUniversals.mkString("∀ ", " ", ". ") else "") + formula.map({ case TreeProjection(calls, call) =>

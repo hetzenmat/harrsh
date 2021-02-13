@@ -13,7 +13,7 @@ case class PhiType(sid: SID, projections: Set[StackForestProjection]) {
 
   def rename(x: Seq[Var], y: Seq[Var], ac: AliasingConstraint): Option[PhiType] = {
     if (x.length == y.length && x.length == x.toSet.size && y.toSet.subsetOf(ac.domain)) {
-      val yMax = y.map(ac.partition)
+      val yMax = y.map(ac.largestAlias)
       val subst = x.zip(yMax).toMap
       Some(PhiType(sid, projections.map(_.substitute(subst))))
     } else {
