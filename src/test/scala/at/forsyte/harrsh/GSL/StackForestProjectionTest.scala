@@ -89,6 +89,25 @@ class StackForestProjectionTest extends AnyFlatSpec {
     assert(StackForestProjection.composition(left, right).contains(StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(), tll_xyz)))))
   }
 
+  it should "correctly compute all the composition for Example 7.36" in {
+
+    val (x1, x2, x3) = (FreeVar("x1"), FreeVar("x2"), FreeVar("x3"))
+
+    val left = StackForestProjection.from(SortedSet(),
+                                          SortedSet(_1),
+                                          Seq(TreeProjection(Seq(P("even")(x2, _1)), P("odd")(x1, _1))))
+
+    val right = StackForestProjection.from(SortedSet(),
+                                           SortedSet(_1),
+                                           Seq(TreeProjection(Seq(P("odd")(x3, _1)), P("even")(x2, _1))))
+
+    val result = StackForestProjection.from(SortedSet(),
+                                            SortedSet(_1),
+                                            Seq(TreeProjection(Seq(P("odd")(x3, _1)), P("odd")(x1, _1))))
+
+    assert(StackForestProjection.composition(left, right).contains(result))
+  }
+
   it should "correctly compute if a projection is delimited" in {
     val sid = SID(Seq(Rule("ptr1", Seq("a", "b"), SymbolicHeap.buildSymbolicHeap(Seq(), Seq(Atom.PointsTo(FreeVar("a"), Seq(FreeVar("b"))))))))
 
