@@ -1,7 +1,9 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.GSL.StackForestProjection.boundVariables
-import at.forsyte.harrsh.seplog.{BoundVar, Var}
+import at.forsyte.harrsh.GSL.GslFormula.Atom
+import at.forsyte.harrsh.GSL.GslFormula.Atom.PredicateCall
+import at.forsyte.harrsh.GSL.StackForestProjection.{boundVariables, freeVariables}
+import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
 
 import scala.collection.SortedSet
 import scala.runtime.ScalaRunTime
@@ -14,11 +16,14 @@ import scala.runtime.ScalaRunTime
 class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val guardedUniversals: SortedSet[BoundVar], val formula: Seq[TreeProjection]) {
 
   val quantifiedLength: Int = guardedExistentials.size + guardedUniversals.size
+  val boundVars: Set[BoundVar] = boundVariables(formula)
+  val freeVars: Set[FreeVar] = freeVariables(formula)
+  val allCalls: Seq[Atom.PredicateCall] = formula.flatMap(p => p.allholepreds :+ p.rootpred)
 
   require(guardedExistentials.intersect(guardedUniversals).isEmpty,
           "No duplicates between quantifier blocks allowed")
 
-  require(boundVariables(formula) == guardedExistentials.union(guardedUniversals),
+  require(boundVars == guardedExistentials.union(guardedUniversals),
           "Set of bound variables is not equal to set of quantified variables")
 
   require(Utils.isSorted(formula), "Tree projections have to be sorted")
@@ -40,6 +45,19 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
 
   def derivableSet: Set[StackForestProjection] = {
     oneStepDerivableSet ++ oneStepDerivableSet.flatMap(_.derivableSet)
+  }
+
+  /**
+    * Determine if the projection is delimited wrt. to the given SID (Definition 8.2).
+    */
+  def isDelimited(sid: SID): Boolean = {
+    val cond1 = allCalls.forall(call => freeVars.contains(sid.predicates(call.pred).predrootVar))
+    if (!cond1) return false
+
+    val allPredCallsLeft = formula.flatMap(_.allholepreds)
+    val allVars = freeVars.asInstanceOf[Set[Var]].union(boundVars.asInstanceOf[Set[Var]])
+
+    allVars.forall(variable => allPredCallsLeft.count(p => sid.predicates(p.pred).predrootVar == variable) <= 1)
   }
 
   /**
@@ -100,11 +118,15 @@ object StackForestProjection {
            guardedUniversals: SortedSet[BoundVar],
            formula: Seq[TreeProjection]): StackForestProjection = new StackForestProjection(guardedExistentials, guardedUniversals, formula.sorted)
 
-  def boundVariables(formula: Seq[TreeProjection]): Set[BoundVar] = {
+  private def formulaFlatMap[A](formula: Seq[TreeProjection], f: PredicateCall => Iterable[A]): Iterable[A] = {
     formula.flatMap({ case TreeProjection(calls, call) =>
-      calls.flatMap(_.boundVars) ++ call.boundVars
-    }).toSet
+      calls.flatMap(f) ++ f(call)
+    })
   }
+
+  def boundVariables(formula: Seq[TreeProjection]): Set[BoundVar] = formulaFlatMap(formula, _.boundVars).toSet
+
+  def freeVariables(formula: Seq[TreeProjection]): Set[FreeVar] = formulaFlatMap(formula, _.freeVars).toSet
 
   def composition(left: StackForestProjection, right: StackForestProjection): Set[StackForestProjection] = {
     allRescopings(left, right).flatMap(sfp => sfp.derivableSet)

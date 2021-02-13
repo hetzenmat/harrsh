@@ -57,29 +57,30 @@ case class SID(predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
   }
 
   private def toRootedSid(startPred: String): RichSid = {
+    val ruleTuples = predicates.flatMap({ case (predName, pred) =>
+      pred.bodies.map(body => {
+        val spatial: Seq[SepLogAtom] = body.spatial.map(p => PointsTo(p.from, p.to))
+        val pure: Seq[SepLogAtom] = body.equalities.map(p =>
+                                                          if (p.vars.size == 1)
+                                                            p.vars.head =:= p.vars.head
+                                                          else
+                                                            p.vars.head =:= p.vars.tail.head
+                                                        ) ++
+          body.disEqualities.map(p =>
+                                   if (p.vars.size == 1)
+                                     p.vars.head =/= p.vars.head
+                                   else
+                                     p.vars.head =/= p.vars.tail.head
+                                 )
+        val calls: Seq[SepLogAtom] = body.calls.map(p => PredCall(p.pred, p.args))
+        (predName, body.quantifiedVars, SH(spatial ++ pure ++ calls: _*))
+      })
+    }).toSeq
+
     SidFactory.makeRootedSid(startPred,
-      "",
-      predicates.map({ case (predName, pred) => (predName, FreeVar(pred.args(pred.predroot))) }),
-      predicates.flatMap({ case (predName, pred) =>
-        pred.bodies.map(body => {
-          val spatial: Seq[SepLogAtom] = body.spatial.map(p => PointsTo(p.from, p.to))
-          val pure: Seq[SepLogAtom] = body.equalities.map(p =>
-            if (p.vars.size == 1)
-              p.vars.head =:= p.vars.head
-            else
-              p.vars.head =:= p.vars.tail.head
-          ) ++
-            body.disEqualities.map(p =>
-              if (p.vars.size == 1)
-                p.vars.head =/= p.vars.head
-              else
-                p.vars.head =/= p.vars.tail.head
-            )
-          val calls: Seq[SepLogAtom] = body.calls.map(p => PredCall(p.pred, p.args))
-          (predName, body.quantifiedVars, SH(spatial ++ pure ++ calls: _*))
-        })
-      }).toSeq: _*
-    )
+                             "",
+                             predicates.map({ case (predName, pred) => (predName, FreeVar(pred.args(pred.predroot))) }),
+                             ruleTuples: _*)
   }
 }
 
@@ -103,13 +104,13 @@ object SID {
             if (ptr.size != 1) false
             else ptr.head.args.head == FreeVar(args(i))
         })
-      ) match {
+        ) match {
         case None => -1
         case Some(i) => i
       }
     }
 
-    def predrootVar: Var =
+    def predrootVar: FreeVar =
       FreeVar(args(predroot))
   }
 

@@ -1,13 +1,13 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.seplog.{BoundVar, Var}
+import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
 
 /**
   * Created by Matthias Hetzenberger on 2021-02-07
   *
   * ADT to model GSL formulae
   */
-sealed abstract trait GslFormula {
+sealed trait GslFormula {
   type T <: GslFormula
 
   def substitute(substitution: Map[Var, Var]): T
@@ -15,7 +15,7 @@ sealed abstract trait GslFormula {
 
 object GslFormula {
 
-  sealed abstract trait Atom extends GslFormula {
+  sealed trait Atom extends GslFormula {
     type T = Atom
 
     def vars: Set[Var]
@@ -57,6 +57,8 @@ object GslFormula {
       override def vars: Set[Var] = args.toSet
 
       def boundVars: Set[BoundVar] = args.collect({ case v: BoundVar => v }).toSet
+
+      def freeVars: Set[FreeVar] = args.collect({ case v: FreeVar => v }).toSet
 
       def pointsTo: Boolean = "^ptr[1-9][0-9]+$".r.matches(pred)
 

@@ -1,6 +1,8 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.PredicateCall
+import at.forsyte.harrsh.GSL.SID.Rule
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -85,5 +87,21 @@ class StackForestProjectionTest extends AnyFlatSpec {
     assert(StackForestProjection.allRescopings(left, right).contains(result))
 
     assert(StackForestProjection.composition(left, right).contains(StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(), tll_xyz)))))
+  }
+
+  it should "correctly compute if a projection is delimited" in {
+    val sid = SID(Seq(Rule("ptr1", Seq("a", "b"), SymbolicHeap.buildSymbolicHeap(Seq(), Seq(Atom.PointsTo(FreeVar("a"), Seq(FreeVar("b"))))))))
+
+    val sfp1 = StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(P("ptr1")(a, b)), P("ptr1")(b, c))))
+
+    assert(sfp1.isDelimited(sid))
+
+    val sfp2 = StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(P("ptr1")(a, b), P("ptr1")(a, c)), P("ptr1")(b, c))))
+
+    assert(!sfp2.isDelimited(sid))
+
+    val sfp3 = StackForestProjection.from(SortedSet(_1), SortedSet(), Seq(TreeProjection(Seq(P("ptr1")(_1, b), P("ptr1")(a, c)), P("ptr1")(b, c))))
+
+    assert(!sfp3.isDelimited(sid))
   }
 }
