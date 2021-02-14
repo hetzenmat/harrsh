@@ -13,14 +13,8 @@ case class PhiType(sid: SID, projections: Set[StackForestProjection]) {
 
   def freeVars: Set[FreeVar] = projections.flatMap(_.freeVars)
 
-  def rename(x: Seq[Var], y: Seq[Var], ac: AliasingConstraint): Option[PhiType] = {
-    if (x.length == y.length && x.length == x.toSet.size && y.toSet.subsetOf(ac.domain)) {
-      val yMax = y.map(ac.largestAlias)
-      val subst = x.zip(yMax).toMap
-      Some(PhiType(sid, projections.map(_.substitute(subst))))
-    } else {
-      None
-    }
+  def rename(x: Seq[Var], y: Seq[Var], ac: AliasingConstraint): PhiType = {
+    PhiType.rename(x, y, ac, Set(this)).head
   }
 
   def forget(ac: AliasingConstraint, x: FreeVar): PhiType = {
@@ -33,7 +27,7 @@ case class PhiType(sid: SID, projections: Set[StackForestProjection]) {
 }
 
 object PhiType {
-  def composition(left: PhiType, right: PhiType): Option[PhiType] = {
+  def composition(left: PhiType, right: PhiType): Option[PhiType] =
     if (left.sid == right.sid && (left.alloced intersect right.alloced).isEmpty) {
       val projections = for (phi1 <- left.projections;
                              phi2 <- right.projections) yield StackForestProjection.composition(phi1, phi2)
@@ -41,5 +35,22 @@ object PhiType {
     } else {
       None
     }
+
+  def composition(left: Set[PhiType], right: Set[PhiType]): Set[PhiType] =
+    (for (l <- left;
+          r <- right) yield composition(l, r)).flatten
+
+  def rename(x: Seq[Var], y: Seq[Var], ac: AliasingConstraint, types: Set[PhiType]): Set[PhiType] = {
+    require(x.length == y.length)
+    require(x.length == x.toSet.size)
+    require(y.toSet.subsetOf(ac.domain))
+
+    val yMax = y.map(ac.largestAlias)
+    val subst = x.zip(yMax).toMap
+    types.map(t => PhiType(t.sid, t.projections.map(_.substitute(subst))))
   }
+
+  def forget(ac: AliasingConstraint, x: FreeVar, types: Set[PhiType]): Set[PhiType] = types.map(_.forget(ac, x))
+
+  def extend(x: FreeVar, types: Set[PhiType]): Set[PhiType] = types.map(_.extend(x))
 }
