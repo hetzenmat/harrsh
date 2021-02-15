@@ -25,11 +25,26 @@ final case class SymbolicHeap(quantifiedVars: Seq[String],
   val lalloc: Set[Var] = spatial.map(_.from).toSet
   val lref: Set[Var] = spatial.flatMap(_.to).toSet
 
+  val atoms: Seq[Atom] = spatial ++ calls ++ equalities ++ disEqualities
+
   def toPointerClosedSymbolicHeap: PointerClosedSymbolicHeap =
     PointerClosedSymbolicHeap(quantifiedVars,
-      calls ++ spatial.map({ case PointsTo(from, to) => PredicateCall("ptr" + to.size, Seq(from) ++ to) }),
-      equalities,
-      disEqualities)
+                              calls ++ spatial.map({ case PointsTo(from, to) => PredicateCall("ptr" + to.size, Seq(from) ++ to) }),
+                              equalities,
+                              disEqualities)
+
+  def dropFirstQuantifiedVar(subst: Var): SymbolicHeap = {
+    require(!freeVars.contains(subst))
+    require(quantifiedVars.nonEmpty)
+
+    val ren: Map[Var, Var] = Map((BoundVar(quantifiedVars.size), subst))
+
+    SymbolicHeap(quantifiedVars.dropRight(1),
+                 spatial.map(_.substitute(ren)),
+                 calls.map(_.substitute(ren)),
+                 equalities.map(_.substitute(ren)),
+                 disEqualities.map(_.substitute(ren)))
+  }
 }
 
 final case class PointerClosedSymbolicHeap(quantifiedVars: Seq[String],
@@ -45,9 +60,9 @@ object SymbolicHeap {
     val renamedAtoms: Seq[Atom] = atoms.map(_.substitute(boundRenaming))
 
     SymbolicHeap(quantifiedVars,
-      spatial = renamedAtoms.collect { case a: PointsTo => a },
-      calls = renamedAtoms.collect { case a: PredicateCall => a },
-      equalities = renamedAtoms.collect { case a: Equality => a },
-      disEqualities = renamedAtoms.collect { case a: DisEquality => a })
+                 spatial = renamedAtoms.collect { case a: PointsTo => a },
+                 calls = renamedAtoms.collect { case a: PredicateCall => a },
+                 equalities = renamedAtoms.collect { case a: Equality => a },
+                 disEqualities = renamedAtoms.collect { case a: DisEquality => a })
   }
 }

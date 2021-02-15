@@ -29,20 +29,20 @@ object GslFormula {
       override def vars: Set[Var] = Set.empty
     }
 
-    final case class Equality(vars: Set[Var]) extends Atom {
-      override def substitute(substitution: Map[Var, Var]): Equality = new Equality(vars.map(v => substitution.getOrElse(v, v)))
+    final case class Equality(left: Var, right: Var) extends Atom {
+
+      override def substitute(substitution: Map[Var, Var]): Equality = Equality(substitution.getOrElse(left, left),
+                                                                                substitution.getOrElse(right, right))
+
+      override def vars: Set[Var] = Set(left, right)
     }
 
-    object Equality {
-      def apply(left: Var, right: Var): Equality = Equality(Set(left, right))
-    }
+    final case class DisEquality(left: Var, right: Var) extends Atom {
+      override def substitute(substitution: Map[Var, Var]): DisEquality = DisEquality(substitution.getOrElse(left, left),
+                                                                                      substitution.getOrElse(right, right))
 
-    final case class DisEquality(vars: Set[Var]) extends Atom {
-      override def substitute(substitution: Map[Var, Var]): DisEquality = new DisEquality(vars.map(v => substitution.getOrElse(v, v)))
-    }
 
-    object DisEquality {
-      def apply(left: Var, right: Var): DisEquality = DisEquality(Set(left, right))
+      override def vars: Set[Var] = Set(left, right)
     }
 
     final case class PointsTo(from: Var, to: Seq[Var]) extends Atom {

@@ -48,7 +48,7 @@ class AliasingConstraintTest extends AnyFlatSpec {
       assert((ac =:= (e1, e2)) == !(ac =/= (e1, e2)))
     }
 
-    val vars = Set(a, b, c)
+    val vars: Set[Var] = Set(a, b, c)
     for (ac <- AliasingConstraint.allAliasingConstraints(vars);
          v1 <- vars;
          v2 <- vars) {

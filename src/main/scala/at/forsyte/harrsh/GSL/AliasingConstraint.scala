@@ -1,13 +1,13 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.seplog.FreeVar
+import at.forsyte.harrsh.seplog.Var
 
 import scala.collection.SortedSet
 import scala.collection.mutable.ListBuffer
 
-case class AliasingConstraint private(partition: Seq[SortedSet[FreeVar]], eqClass: Map[FreeVar, Int]) {
+case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: Map[Var, Int]) {
 
-  def domain: Set[FreeVar] = eqClass.keySet
+  def domain: Set[Var] = eqClass.keySet
 
   require(domain.size == partition.map(_.size).sum, "Partition is not valid")
 
@@ -15,26 +15,63 @@ case class AliasingConstraint private(partition: Seq[SortedSet[FreeVar]], eqClas
 
   require(eqClass.forall({ case (k, v) => partition(v).contains(k) }), "Equivalence mapping is not valid")
 
-  def largestAlias(v: FreeVar): FreeVar = this (v).max
+  def largestAlias(v: Var): Var = this (v).max
 
-  def apply(v: FreeVar): SortedSet[FreeVar] = partition(eqClass(v))
+  def apply(v: Var): SortedSet[Var] = partition(eqClass(v))
 
-  def =:=(t: (FreeVar, FreeVar)): Boolean = eqClass(t._1) == eqClass(t._2)
+  def =:=(t: (Var, Var)): Boolean = eqClass(t._1) == eqClass(t._2)
 
-  def =/=(t: (FreeVar, FreeVar)): Boolean = !(this =:= t)
+  def =/=(t: (Var, Var)): Boolean = !(this =:= t)
 
   def subsetOf(other: AliasingConstraint): Boolean = {
     partition.forall(s => other.partition.exists(su => s.subsetOf(su)))
+  }
+
+  def allExtensions(v: Var): Set[AliasingConstraint] = {
+    Set(AliasingConstraint(partition :+ SortedSet(v), eqClass.updated(v, partition.size)))
+      .union(Set.from(partition.zipWithIndex.map({
+        case (set, idx) => AliasingConstraint(partition.updated(idx, set.union(Set(v))), eqClass.updated(v, idx))
+      })))
+  }
+
+  def reverseRenaming(x: Seq[Var], y: Seq[Var]): AliasingConstraint = {
+    val xSet = x.toSet
+    val ySet = y.toSet
+    require(x.length == xSet.size)
+    require(x.length == y.length)
+    require(domain.intersect(xSet).isEmpty)
+    require(ySet.subsetOf(domain))
+
+    val yMap: Map[Int, Var] = y.map(eqClass).zip(y).toMap
+    val toChange = yMap.keySet
+    val rel = x.zip(y)
+
+    val newPartition = partition.zipWithIndex.map({
+      case (set, idx) =>
+        if (toChange contains idx) {
+          set.union(Set.from(rel.filter({ case (_, yy) => yy == yMap(idx) }).map(_._1)))
+        } else {
+          set
+        }
+    })
+
+    val newEqClass = (eqClass.toSeq ++ rel.map({ case (xx, yy) => (xx, eqClass(yy)) })).toMap
+
+    AliasingConstraint(newPartition, newEqClass)
+  }
+
+  def restricted(v: Set[Var]): AliasingConstraint = {
+    AliasingConstraint(partition.map(_.diff(v)), eqClass.filterNot(t => v.contains(t._1)))
   }
 }
 
 object AliasingConstraint {
 
-  def allAliasingConstraints(vars: Set[FreeVar]): LazyList[AliasingConstraint] = {
+  def allAliasingConstraints(vars: Set[Var]): LazyList[AliasingConstraint] = {
     allPartitions(vars).map(eqClass => {
 
-      val buffer = ListBuffer.empty[collection.mutable.Set[FreeVar]]
-      val map = collection.mutable.Map.empty[FreeVar, Int]
+      val buffer = ListBuffer.empty[collection.mutable.Set[Var]]
+      val map = collection.mutable.Map.empty[Var, Int]
       eqClass.foreach({ case (variable, repr) =>
 
         map.get(repr) match {
@@ -48,7 +85,7 @@ object AliasingConstraint {
         }
       })
 
-      AliasingConstraint(buffer.map(s => collection.immutable.SortedSet.from(s)).toSeq, map.toMap)
+      AliasingConstraint(buffer.map(s => SortedSet.from(s)).toSeq, map.toMap)
     })
   }
 
