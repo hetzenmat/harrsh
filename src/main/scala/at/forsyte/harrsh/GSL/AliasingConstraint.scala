@@ -1,13 +1,13 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.seplog.Var
+import at.forsyte.harrsh.seplog.FreeVar
 
 import scala.collection.SortedSet
 import scala.collection.mutable.ListBuffer
 
-case class AliasingConstraint(partition: Seq[SortedSet[Var]], eqClass: Map[Var, Int]) {
+case class AliasingConstraint private(partition: Seq[SortedSet[FreeVar]], eqClass: Map[FreeVar, Int]) {
 
-  def domain: Set[Var] = eqClass.keySet
+  def domain: Set[FreeVar] = eqClass.keySet
 
   require(domain.size == partition.map(_.size).sum, "Partition is not valid")
 
@@ -15,22 +15,26 @@ case class AliasingConstraint(partition: Seq[SortedSet[Var]], eqClass: Map[Var, 
 
   require(eqClass.forall({ case (k, v) => partition(v).contains(k) }), "Equivalence mapping is not valid")
 
-  def largestAlias(v: Var): Var = this (v).max
+  def largestAlias(v: FreeVar): FreeVar = this (v).max
 
-  def apply(v: Var): SortedSet[Var] = partition(eqClass(v))
+  def apply(v: FreeVar): SortedSet[FreeVar] = partition(eqClass(v))
 
-  def =:=(t: (Var, Var)): Boolean = eqClass(t._1) == eqClass(t._2)
+  def =:=(t: (FreeVar, FreeVar)): Boolean = eqClass(t._1) == eqClass(t._2)
 
-  def =/=(t: (Var, Var)): Boolean = !(this =:= t)
+  def =/=(t: (FreeVar, FreeVar)): Boolean = !(this =:= t)
+
+  def subsetOf(other: AliasingConstraint): Boolean = {
+    partition.forall(s => other.partition.exists(su => s.subsetOf(su)))
+  }
 }
 
 object AliasingConstraint {
 
-  def allAliasingConstraints(vars: Set[Var]): LazyList[AliasingConstraint] = {
+  def allAliasingConstraints(vars: Set[FreeVar]): LazyList[AliasingConstraint] = {
     allPartitions(vars).map(eqClass => {
 
-      val buffer = ListBuffer.empty[collection.mutable.Set[Var]]
-      val map = collection.mutable.Map.empty[Var, Int]
+      val buffer = ListBuffer.empty[collection.mutable.Set[FreeVar]]
+      val map = collection.mutable.Map.empty[FreeVar, Int]
       eqClass.foreach({ case (variable, repr) =>
 
         map.get(repr) match {
