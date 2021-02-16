@@ -48,6 +48,8 @@ object GslFormula {
     final case class PointsTo(from: Var, to: Seq[Var]) extends Atom {
       override def substitute(substitution: Map[Var, Var]): PointsTo = PointsTo(substitution.getOrElse(from, from), to.map(v => substitution.getOrElse(v, v)))
 
+      def ptrmodel(ac: AliasingConstraint): Map[Var, Int] = ac.eqClass.map(kv => (kv._1, kv._2 + 1))
+
       override def vars: Set[Var] = to.prepended(from).toSet
     }
 

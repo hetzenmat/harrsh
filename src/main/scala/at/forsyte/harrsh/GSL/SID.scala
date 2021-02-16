@@ -1,10 +1,10 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.GSL.GslFormula.Atom.PredicateCall
+import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.SID.{Predicate, establishedResultSuccess}
 import at.forsyte.harrsh.heapautomata.instances.TrackingAutomata
 import at.forsyte.harrsh.refinement.RefinementAlgorithms
-import at.forsyte.harrsh.seplog.{FreeVar, Var}
+import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
 import at.forsyte.harrsh.seplog.inductive.{PointsTo, PredCall, RichSid, SepLogAtom, SidFactory, SymbolicHeap => SH}
 
 /**
@@ -20,8 +20,8 @@ case class SID(predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
     predicates.keys.forall(p => satisfiesProgress(p))
 
   def satisfiesConnectivity(pred: String): Boolean =
-    predicates.contains(pred) && predicates(pred).bodies.forall(body => {
-      body.calls.forall({ case PredicateCall(name, args) => predicates.contains(name) && body.lref.contains(args(predicates(name).predrootIndex)) })
+    predicates.contains(pred) && predicates(pred).rules.forall(body => {
+      body.calls.forall({ case Atom.PredicateCall(name, args) => predicates.contains(name) && body.lref.contains(args(predicates(name).predrootIndex)) })
     })
 
   lazy val satisfiesConnectivity: Boolean =
@@ -56,30 +56,45 @@ case class SID(predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
       Left("SID does not satisfy progress")
   }
 
+  def allRuleInstancesForPointsTo(from: Int, to: Seq[Int], range: Range): LazyList[RuleInstance] = {
+
+    val candidates = for (pred <- LazyList.from(predicates.values);
+                          rule <- pred.rules;
+                          instantiationSize = pred.args.length + rule.quantifiedVars.length;
+                          instantiation <- Utils.allSeqsWithRange(instantiationSize, range);
+                          subst: Map[Var, Int] = (rule.freeVars ++ (1 to rule.quantifiedVars.length).map(BoundVar)).zip(instantiation).toMap) yield rule.instantiate(pred.name, instantiation.take(pred.args.length), subst)
+
+    candidates.flatten.filter({ case RuleInstance(_, _, from_, to_, _) => from == from_ && to == to_ })
+  }
+
+
   private def toRootedSid(startPred: String): RichSid = {
-    val ruleTuples = predicates.flatMap({ case (predName, pred) =>
-      pred.bodies.map(body => {
-        val spatial: Seq[SepLogAtom] = body.spatial.map(p => PointsTo(p.from, p.to))
-        val pure: Seq[SepLogAtom] = body.equalities.map(p =>
-                                                          if (p.vars.size == 1)
-                                                            p.vars.head =:= p.vars.head
-                                                          else
-                                                            p.vars.head =:= p.vars.tail.head
-                                                        ) ++
-          body.disEqualities.map(p =>
-                                   if (p.vars.size == 1)
-                                     p.vars.head =/= p.vars.head
-                                   else
-                                     p.vars.head =/= p.vars.tail.head
-                                 )
-        val calls: Seq[SepLogAtom] = body.calls.map(p => PredCall(p.pred, p.args))
-        (predName, body.quantifiedVars, SH(spatial ++ pure ++ calls: _*))
-      })
+    val ruleTuples = predicates.flatMap({
+      case (predName, pred) =>
+        pred.rules.map(body => {
+          val spatial: Seq[SepLogAtom] = body.spatial.map(p => PointsTo(p.from, p.to))
+          val pure: Seq[SepLogAtom] = body.equalities.map(p =>
+                                                            if (p.vars.size == 1)
+                                                              p.vars.head =:= p.vars.head
+                                                            else
+                                                              p.vars.head =:= p.vars.tail.head
+                                                          ) ++
+            body.disEqualities.map(p =>
+                                     if (p.vars.size == 1)
+                                       p.vars.head =/= p.vars.head
+                                     else
+                                       p.vars.head =/= p.vars.tail.head
+                                   )
+          val calls: Seq[SepLogAtom] = body.calls.map(p => PredCall(p.pred, p.args))
+          (predName, body.quantifiedVars, SH(spatial ++ pure ++ calls: _*))
+        })
     }).toSeq
 
     SidFactory.makeRootedSid(startPred,
                              "",
-                             predicates.map({ case (predName, pred) => (predName, FreeVar(pred.args(pred.predrootIndex))) }),
+                             predicates.map({
+                               case (predName, pred) => (predName, FreeVar(pred.args(pred.predrootIndex)))
+                             }),
                              ruleTuples: _*)
   }
 }
@@ -91,14 +106,14 @@ object SID {
 
   private val establishedResultSuccess: Boolean = false
 
-  case class Predicate[T <: AbstractSymbolicHeap](name: String, args: Seq[String], bodies: Seq[T]) {
+  case class Predicate[T <: AbstractSymbolicHeap](name: String, args: Seq[String], rules: Seq[T]) {
 
     /**
       * If the predicate satisfies progress, predrootIndex >= 0 and -1 otherwise.
       */
-    def predrootIndex: Int = {
+    val predrootIndex: Int = {
       args.indices.find(
-        i => bodies.forall(h => h match {
+        i => rules.forall(h => h match {
           case sh: SymbolicHeap => sh.spatial.size == 1 && sh.spatial.head.from == FreeVar(args(i))
           case sh: PointerClosedSymbolicHeap => val ptr = sh.calls.filter(_.pointsTo)
             if (ptr.size != 1) false
@@ -110,7 +125,7 @@ object SID {
       }
     }
 
-    def predroot: FreeVar =
+    val predroot: FreeVar =
       FreeVar(args(predrootIndex))
   }
 
@@ -134,7 +149,7 @@ object SID {
             if (rule.args != pred.args)
               throw RuleException("Arguments have to be the same for all rules of a predicate")
 
-            Some(Predicate(rule.name, rule.args, pred.bodies.appended(rule.body)))
+            Some(Predicate(rule.name, rule.args, pred.rules.appended(rule.body)))
         }
     })
 }

@@ -1,20 +1,18 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.GSL.GslFormula.Atom.{PointsTo, PredicateCall}
+import at.forsyte.harrsh.GSL.GslFormula.Atom.PointsTo
 import at.forsyte.harrsh.seplog.{FreeVar, Var}
-
-import scala.collection.SortedSet
 
 /**
   * Created by Matthias Hetzenberger on 2021-02-13
   */
-case class PhiType(projections: Set[StackForestProjection]) {
-  def alloced(sid: SID): Set[FreeVar] = projections.flatMap(_.formula
+case class PhiType(projections: LazyList[StackForestProjection]) {
+  def alloced(sid: SID): LazyList[FreeVar] = projections.flatMap(_.formula
                                                              .map(_.rootpred.pred)
                                                              .map(sid.predicates)
                                                              .map(_.predroot))
 
-  def freeVars: Set[FreeVar] = projections.flatMap(_.freeVars)
+  def freeVars: Set[FreeVar] = projections.flatMap(_.freeVars).toSet
 
   def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint): PhiType = {
     PhiType.rename(x, y, ac, Set(this)).head
@@ -25,7 +23,7 @@ case class PhiType(projections: Set[StackForestProjection]) {
   }
 
   def extend(x: FreeVar): PhiType = {
-    PhiType(projections union projections.flatMap(_.extend(x)))
+    PhiType(projections ++ projections.flatMap(_.extend(x)))
   }
 
   def extend(ac: AliasingConstraint, acSup: AliasingConstraint): PhiType = {
@@ -81,11 +79,13 @@ object PhiType {
     })
   }
 
-  def ptrmodel(ac: AliasingConstraint, pointsTo: PointsTo): PhiType = {
-    val args = (pointsTo.from +: pointsTo.to).map(ac.largestAlias)
+  def ptrmodel(sid: SID, ac: AliasingConstraint, pointsTo: PointsTo): PhiType = {
 
-    PhiType(Set(new StackForestProjection(SortedSet(),
-                                          SortedSet(),
-                                          Seq(TreeProjection(Seq(), PredicateCall("ptr" + pointsTo.to.size, args))))))
+    val pm = pointsTo.ptrmodel(ac)
+
+    val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size + 1 /* TOOD |sid|? */)
+
+
+    PhiType(R.map(inst => StackForestProjection.fromPtrmodel(ac, inst)).filter(_.isDelimited(sid)))
   }
 }

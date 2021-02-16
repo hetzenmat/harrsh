@@ -12,6 +12,11 @@ object Utils {
     }
   }
 
+  def allSeqsWithRange(length: Int, range: Range): LazyList[Seq[Int]] = length match {
+    case 1 => LazyList.from(range.map(i => Seq(i)))
+    case _ => LazyList.from(range.flatMap(i => allSeqsWithRange(length - 1, range).map(i +: _)))
+  }
+
   def isSorted[A](a: Seq[A])(implicit evidence: A => Ordered[A]): Boolean = {
     if (a.isEmpty)
       true

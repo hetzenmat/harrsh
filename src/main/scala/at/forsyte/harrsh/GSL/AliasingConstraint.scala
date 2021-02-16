@@ -28,10 +28,9 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
   }
 
   def allExtensions(v: Var): Set[AliasingConstraint] = {
-    Set(AliasingConstraint(partition :+ SortedSet(v), eqClass.updated(v, partition.size)))
-      .union(Set.from(partition.zipWithIndex.map({
-        case (set, idx) => AliasingConstraint(partition.updated(idx, set.union(Set(v))), eqClass.updated(v, idx))
-      })))
+    Set.from(partition.zipWithIndex.map({
+      case (set, idx) => AliasingConstraint(partition.updated(idx, set.union(Set(v))), eqClass.updated(v, idx))
+    })).incl(AliasingConstraint(partition :+ SortedSet(v), eqClass.updated(v, partition.size)))
   }
 
   def reverseRenaming(x: Seq[Var], y: Seq[Var]): AliasingConstraint = {

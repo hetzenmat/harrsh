@@ -93,6 +93,7 @@ case class BoundVar(index: Int) extends Var {
   override def isNull: Boolean = false
 
   override def toString: String = Var.BoundVarPrefix + index
+
 }
 
 object Var {
@@ -109,7 +110,7 @@ object Var {
     "__" -> "\\beta_",
     NilString -> "\\nil",
     NullString -> "\\nil"
-  )
+    )
 
   implicit val varToLatex: ToLatex[Var] = (v: Var, naming: Naming) => {
     StringUtils.literalReplacements(latexReplacements, naming(v))

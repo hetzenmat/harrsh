@@ -7,11 +7,12 @@ import at.forsyte.harrsh.seplog.{FreeVar, Var}
 object TypeComputation {
 
   type PredTypes = (SID.Predicate[SymbolicHeap], AliasingConstraint) => Set[PhiType]
+  type PredTypesMap = Map[(SID.Predicate[SymbolicHeap], AliasingConstraint), Set[PhiType]]
 
-  def ptypes(sid: SID, x: Set[Var], p: PredTypes, atom: Atom, ac: AliasingConstraint): Set[PhiType] = atom match {
-    case Equality(left, right) => if (ac =:= (left, right)) Set(PhiType(Set())) else Set()
-    case DisEquality(left, right) => if (ac =:= (left, right)) Set() else Set(PhiType(Set()))
-    case pointsTo: PointsTo => Set(PhiType.ptrmodel(ac, pointsTo))
+  def ptypes(sid: SID, x: Set[Var], p: PredTypesMap, atom: Atom, ac: AliasingConstraint): Set[PhiType] = atom match {
+    case Equality(left, right) => if (ac =:= (left, right)) Set(PhiType(LazyList.empty)) else Set()
+    case DisEquality(left, right) => if (ac =:= (left, right)) Set() else Set(PhiType(LazyList.empty))
+    case pointsTo: PointsTo => Set(PhiType.ptrmodel(sid, ac, pointsTo))
     case PredicateCall(predName, args) =>
       val pred = sid.predicates(predName)
 
@@ -28,12 +29,12 @@ object TypeComputation {
       typesExtended
   }
 
-  def ptypes(sid: SID, x: Set[Var], p: PredTypes, atoms: Seq[Atom], ac: AliasingConstraint): Set[PhiType] = atoms match {
+  def ptypes(sid: SID, x: Set[Var], p: PredTypesMap, atoms: Seq[Atom], ac: AliasingConstraint): Set[PhiType] = atoms match {
     case atom +: Seq() => ptypes(sid, x, p, atom, ac)
     case head +: rest => PhiType.composition(sid, ptypes(sid, x, p, head, ac), ptypes(sid, x, p, rest, ac))
   }
 
-  def ptypes(sid: SID, x: Set[Var], p: PredTypes, sh: SymbolicHeap, ac: AliasingConstraint): Set[PhiType] =
+  def ptypes(sid: SID, x: Set[Var], p: PredTypesMap, sh: SymbolicHeap, ac: AliasingConstraint): Set[PhiType] =
     if (sh.quantifiedVars.nonEmpty) {
       val fresh = Var.freshFreeVar(x.union(sh.freeVars))
       val allExtensions = ac.allExtensions(fresh)
@@ -43,4 +44,14 @@ object TypeComputation {
       })
     } else ptypes(sid, x, p, sh.atoms, ac)
 
+  def unfold(sid: SID, x: Set[Var], p: PredTypesMap): PredTypesMap = {
+
+
+
+    Map.empty
+  }
+
+  def lfpUnfold(sid: SID, x: Set[Var]): PredTypesMap = {
+    Map.empty
+  }
 }

@@ -150,11 +150,22 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
   }
 
   override def hashCode(): Int = {
-    ScalaRunTime._hashCode((guardedExistentials, guardedUniversals, formula)) // System.identityHashCode()
+    ScalaRunTime._hashCode((guardedExistentials, guardedUniversals, formula))
   }
 }
 
 object StackForestProjection {
+
+  def fromPtrmodel(ac: AliasingConstraint, inst: RuleInstance): StackForestProjection = {
+    type PredCall = (String, Seq[Int])
+    val projectLoc: (Seq[PredCall], PredCall) = (inst.calls, (inst.predName, inst.predArgs))
+
+    new StackForestProjection(SortedSet(), SortedSet(), Seq(
+      TreeProjection(projectLoc._1.map({
+        case (predName, args) =>
+          Atom.PredicateCall(predName, args.map(i => ac.partition(i - 1).max))
+      }), Atom.PredicateCall(projectLoc._2._1, projectLoc._2._2.map(i => ac.partition(i - 1).max)))))
+  }
 
   def from(guardedExistentials: SortedSet[BoundVar],
            guardedUniversals: SortedSet[BoundVar],

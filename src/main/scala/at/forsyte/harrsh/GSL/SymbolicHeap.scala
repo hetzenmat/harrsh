@@ -9,16 +9,15 @@ sealed abstract class AbstractSymbolicHeap()
 /**
   * Created by Matthias Hetzenberger on 2021-02-08
   *
-  * Represent a symbolic heap
+  * Represent a symbolic heap.
+  * Quantified variables are represented by bound variables starting with index 1.
   */
 final case class SymbolicHeap(quantifiedVars: Seq[String],
                               spatial: Seq[PointsTo],
                               calls: Seq[PredicateCall],
                               equalities: Seq[Equality],
                               disEqualities: Seq[DisEquality]) extends AbstractSymbolicHeap {
-  val allVars: Set[Var] = (spatial ++ calls ++ equalities ++ disEqualities).foldLeft(Set.empty[Var]) { (set, atom) =>
-    set.union(atom.vars)
-  }
+  val allVars: Set[Var] = (spatial ++ calls ++ equalities ++ disEqualities).flatMap(_.vars).toSet
 
   val freeVars: Set[Var] = allVars.collect { case a: FreeVar => a }
 
@@ -32,6 +31,26 @@ final case class SymbolicHeap(quantifiedVars: Seq[String],
                               calls ++ spatial.map({ case PointsTo(from, to) => PredicateCall("ptr" + to.size, Seq(from) ++ to) }),
                               equalities,
                               disEqualities)
+
+  def instantiate(predName: String, args: Seq[Int], subst: Map[Var, Int]): Option[RuleInstance] = {
+    require(allVars.subsetOf(subst.keySet))
+
+    if (equalities.exists({ case Equality(left, right) => subst(left) != subst(right) })) {
+      return None
+    }
+    if (disEqualities.exists({ case DisEquality(left, right) => subst(left) == subst(right) })) {
+      return None
+    }
+    if (spatial.size != 1) {
+      return None
+    }
+
+    val from = subst(spatial.head.from)
+    val to = spatial.head.to.map(subst)
+    val callsReplaced: Seq[(String, Seq[Int])] = calls.map(c => (c.pred, c.args.map(subst)))
+
+    Some(RuleInstance(predName, args, from, to, callsReplaced))
+  }
 
   def dropFirstQuantifiedVar(subst: Var): SymbolicHeap = {
     require(!freeVars.contains(subst))
