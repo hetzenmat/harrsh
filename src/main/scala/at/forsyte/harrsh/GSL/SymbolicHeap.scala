@@ -32,7 +32,7 @@ final case class SymbolicHeap(quantifiedVars: Seq[String],
                               equalities,
                               disEqualities)
 
-  def instantiate(predName: String, args: Seq[Int], subst: Map[Var, Int]): Option[RuleInstance] = {
+  def instantiate(pred: SID.Predicate[SymbolicHeap], args: Seq[Int], subst: Map[Var, Int]): Option[RuleInstance] = {
     require(allVars.subsetOf(subst.keySet))
 
     if (equalities.exists({ case Equality(left, right) => subst(left) != subst(right) })) {
@@ -49,7 +49,7 @@ final case class SymbolicHeap(quantifiedVars: Seq[String],
     val to = spatial.head.to.map(subst)
     val callsReplaced: Seq[(String, Seq[Int])] = calls.map(c => (c.pred, c.args.map(subst)))
 
-    Some(RuleInstance(predName, args, from, to, callsReplaced))
+    Some(RuleInstance(pred, args, from, to, callsReplaced))
   }
 
   def dropFirstQuantifiedVar(subst: Var): SymbolicHeap = {

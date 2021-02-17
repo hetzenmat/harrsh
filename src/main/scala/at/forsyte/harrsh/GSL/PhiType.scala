@@ -6,11 +6,11 @@ import at.forsyte.harrsh.seplog.{FreeVar, Var}
 /**
   * Created by Matthias Hetzenberger on 2021-02-13
   */
-case class PhiType(projections: LazyList[StackForestProjection]) {
-  def alloced(sid: SID): LazyList[FreeVar] = projections.flatMap(_.formula
-                                                             .map(_.rootpred.pred)
-                                                             .map(sid.predicates)
-                                                             .map(_.predroot))
+case class PhiType(projections: Set[StackForestProjection]) {
+  def alloced(sid: SID): Set[FreeVar] = projections.flatMap(_.formula
+    .map(_.rootpred.pred)
+    .map(sid.predicates)
+    .map(_.predroot))
 
   def freeVars: Set[FreeVar] = projections.flatMap(_.freeVars).toSet
 
@@ -32,6 +32,9 @@ case class PhiType(projections: LazyList[StackForestProjection]) {
 }
 
 object PhiType {
+
+  def empty: PhiType = PhiType(Set.empty)
+
   def composition(sid: SID, left: PhiType, right: PhiType): Option[PhiType] =
     if ((left.alloced(sid) intersect right.alloced(sid)).isEmpty) {
       val projections = for (phi1 <- left.projections;
@@ -41,11 +44,11 @@ object PhiType {
       None
     }
 
-  def composition(sid: SID, left: Set[PhiType], right: Set[PhiType]): Set[PhiType] =
+  def composition(sid: SID, left: Iterable[PhiType], right: Iterable[PhiType]): Iterable[PhiType] =
     (for (l <- left;
           r <- right) yield composition(sid, l, r)).flatten
 
-  def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint, types: Set[PhiType]): Set[PhiType] = {
+  def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint, types: Iterable[PhiType]): Iterable[PhiType] = {
     require(x.length == y.length)
     require(x.length == x.toSet.size)
     require(y.toSet[Var].subsetOf(ac.domain))
@@ -55,11 +58,11 @@ object PhiType {
     types.map(t => PhiType(t.projections.map(_.substitute(subst))))
   }
 
-  def forget(sid: SID, ac: AliasingConstraint, x: FreeVar, types: Set[PhiType]): Set[PhiType] = types.map(_.forget(sid, ac, x))
+  def forget(sid: SID, ac: AliasingConstraint, x: FreeVar, types: Iterable[PhiType]): Iterable[PhiType] = types.map(_.forget(sid, ac, x))
 
-  def extend(x: FreeVar, types: Set[PhiType]): Set[PhiType] = types.map(_.extend(x))
+  def extend(x: FreeVar, types: Iterable[PhiType]): Iterable[PhiType] = types.map(_.extend(x))
 
-  def extend(ac: AliasingConstraint, acSup: AliasingConstraint, types: Set[PhiType]): Set[PhiType] = {
+  def extend(ac: AliasingConstraint, acSup: AliasingConstraint, types: Iterable[PhiType]): Iterable[PhiType] = {
     require(ac.subsetOf(acSup))
 
     val y = ac.partition.map(_.max)
@@ -83,9 +86,8 @@ object PhiType {
 
     val pm = pointsTo.ptrmodel(ac)
 
-    val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size + 1 /* TOOD |sid|? */)
+    val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 1 to ac.domain.size + 1 /* TOOD |sid|? */)
 
-
-    PhiType(R.map(inst => StackForestProjection.fromPtrmodel(ac, inst)).filter(_.isDelimited(sid)))
+    PhiType(R.map({ case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm) }).filter(_.isDelimited(sid)).toSet)
   }
 }

@@ -3,7 +3,7 @@ package at.forsyte.harrsh.GSL
 import at.forsyte.harrsh.GSL.GslFormula.Atom.PredicateCall
 import at.forsyte.harrsh.GSL.SID.Predicate
 import at.forsyte.harrsh.parsers.GslParser
-import at.forsyte.harrsh.seplog.{BoundVar, FreeVar}
+import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
 import org.scalatest.flatspec.AnyFlatSpec
 
 class SlBtwTest extends AnyFlatSpec {

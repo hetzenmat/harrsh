@@ -38,6 +38,7 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
     val ySet = y.toSet
     require(x.length == xSet.size)
     require(x.length == y.length)
+    println(x, y, domain)
     require(domain.intersect(xSet).isEmpty)
     require(ySet.subsetOf(domain))
 
