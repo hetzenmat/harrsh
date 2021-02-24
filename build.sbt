@@ -3,7 +3,7 @@ name := "harrsh"
 
 version := "1.0"
 
-scalaVersion := "2.13.4"
+scalaVersion := "2.13.5"
 
 // scalacOptions ++= Seq("-Xmax-classfile-name","78")
 
@@ -23,7 +23,11 @@ libraryDependencies += "org.antlr" % "antlr4-runtime" % "4.7"
 
 libraryDependencies += "org.parboiled" %% "parboiled" % "2.2.1"
 
-scalacOptions ++= Seq("-deprecation", "-feature")
+scalacOptions ++= Seq("-deprecation",
+                      "-feature",
+                      "-explaintypes",
+                      "-Xdev",
+                      "-Xlint:_")
 
 //test in assembly := {}
 

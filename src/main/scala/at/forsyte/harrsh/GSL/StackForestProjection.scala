@@ -50,7 +50,7 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
   /**
     * Determine if the projection is delimited wrt. to the given SID (Definition 8.2).
     */
-  def isDelimited(sid: SID): Boolean = {
+  def isDelimited(sid: SID_btw): Boolean = {
     val cond1 = allCalls.forall(call => freeVars.contains(sid.predicates(call.pred).predroot))
     if (!cond1) return false
 

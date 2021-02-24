@@ -1,9 +1,8 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.GSL.GslFormula.Atom.PredicateCall
 import at.forsyte.harrsh.GSL.SID.Predicate
 import at.forsyte.harrsh.parsers.GslParser
-import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
+import at.forsyte.harrsh.seplog.{BoundVar, FreeVar}
 import org.scalatest.flatspec.AnyFlatSpec
 
 class SlBtwTest extends AnyFlatSpec {
@@ -14,6 +13,7 @@ class SlBtwTest extends AnyFlatSpec {
         |lseg(x1,x2) <= ∃y.x1 -> (y) * lseg(y, x2)
         |""".stripMargin)
     val result = parser.parseSID.run()
+
 
     assert(result.isSuccess)
 
@@ -31,14 +31,9 @@ class SlBtwTest extends AnyFlatSpec {
     assert(sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
 
-    sid.toPointerClosedSID match {
+    sid.toBtw match {
       case Left(_) => fail()
-      case Right(pcSID) => assert(pcSID ==
-        PointerClosedSID(Map("lseg" ->
-          Predicate("lseg",
-            Vector("x1", "x2"),
-            List(PointerClosedSymbolicHeap(List(), Vector(PredicateCall("ptr1", List(FreeVar("x1"), FreeVar("x2")))), Vector(), Vector()),
-              PointerClosedSymbolicHeap(Vector("y"), Vector(PredicateCall("lseg", Vector(BoundVar(1), FreeVar("x2"))), PredicateCall("ptr1", List(FreeVar("x1"), BoundVar(1)))), Vector(), Vector()))))))
+      case Right(s) =>  assert(s.pointsToSizes == Set(1))
     }
   }
 
@@ -67,7 +62,7 @@ class SlBtwTest extends AnyFlatSpec {
     assert(sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
 
-    assert(sid.toPointerClosedSID.isRight)
+    assert(sid.toBtw.isRight)
   }
 
   it should "determine that lists with dangling pointers are not established" in {
@@ -80,7 +75,7 @@ class SlBtwTest extends AnyFlatSpec {
 
     assert(result.isSuccess)
     assert(!result.get.satisfiesEstablishment)
-    assert(result.get.toPointerClosedSID.isLeft)
+    assert(result.get.toBtw.isLeft)
 
     val parser2 = new GslParser(
       """
@@ -92,7 +87,7 @@ class SlBtwTest extends AnyFlatSpec {
     assert(result2.get.satisfiesConnectivity)
     assert(!result2.get.satisfiesEstablishment)
 
-    assert(result2.get.toPointerClosedSID.isLeft)
+    assert(result2.get.toBtw.isLeft)
   }
 
   it should "correctly compute progress, connectivity and establishment for tll" in {
@@ -117,7 +112,7 @@ class SlBtwTest extends AnyFlatSpec {
     assert(sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
 
-    assert(sid.toPointerClosedSID.isRight)
+    assert(sid.toBtw.isRight)
   }
 
   it should "correctly determine that a variant of lseg does not satisfy connectivity" in {
@@ -144,6 +139,6 @@ class SlBtwTest extends AnyFlatSpec {
     assert(!sid.satisfiesConnectivity)
     assert(sid.satisfiesEstablishment)
 
-    assert(sid.toPointerClosedSID.isLeft)
+    assert(sid.toBtw.isLeft)
   }
 }

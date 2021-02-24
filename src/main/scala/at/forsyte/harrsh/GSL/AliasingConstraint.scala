@@ -19,9 +19,9 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
 
   def apply(v: Var): SortedSet[Var] = partition(eqClass(v))
 
-  def =:=(t: (Var, Var)): Boolean = eqClass(t._1) == eqClass(t._2)
+  def =:=(left: Var, right: Var): Boolean = eqClass(left) == eqClass(right)
 
-  def =/=(t: (Var, Var)): Boolean = !(this =:= t)
+  def =/=(left: Var, right: Var): Boolean = !(this =:= (left, right))
 
   def subsetOf(other: AliasingConstraint): Boolean = {
     partition.forall(s => other.partition.exists(su => s.subsetOf(su)))

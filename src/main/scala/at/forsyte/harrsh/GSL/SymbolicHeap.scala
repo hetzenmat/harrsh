@@ -4,7 +4,12 @@ import GslFormula.Atom._
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
 
-sealed abstract class AbstractSymbolicHeap()
+sealed abstract class AbstractSymbolicHeap() {
+  val atoms: Seq[Atom]
+  final lazy val allVars: Set[Var] = atoms.flatMap(_.vars).toSet
+  final lazy val freeVars: Set[Var] = allVars.collect { case a: FreeVar => a }
+
+}
 
 /**
   * Created by Matthias Hetzenberger on 2021-02-08
@@ -17,22 +22,38 @@ final case class SymbolicHeap(quantifiedVars: Seq[String],
                               calls: Seq[PredicateCall],
                               equalities: Seq[Equality],
                               disEqualities: Seq[DisEquality]) extends AbstractSymbolicHeap {
-  val allVars: Set[Var] = (spatial ++ calls ++ equalities ++ disEqualities).flatMap(_.vars).toSet
-
-  val freeVars: Set[Var] = allVars.collect { case a: FreeVar => a }
+  override val atoms: Seq[Atom] = spatial ++ calls ++ equalities ++ disEqualities
 
   val lalloc: Set[Var] = spatial.map(_.from).toSet
   val lref: Set[Var] = spatial.flatMap(_.to).toSet
 
-  val atoms: Seq[Atom] = spatial ++ calls ++ equalities ++ disEqualities
+  def toBtw: SymbolicHeapBtw = SymbolicHeapBtw(quantifiedVars, spatial.head, calls, equalities, disEqualities)
 
-  def toPointerClosedSymbolicHeap: PointerClosedSymbolicHeap =
-    PointerClosedSymbolicHeap(quantifiedVars,
-                              calls ++ spatial.map({ case PointsTo(from, to) => PredicateCall("ptr" + to.size, Seq(from) ++ to) }),
-                              equalities,
-                              disEqualities)
+}
 
-  def instantiate(pred: SID.Predicate[SymbolicHeap], args: Seq[Int], subst: Map[Var, Int]): Option[RuleInstance] = {
+sealed trait AbstractSymbolicHeapBtw extends AbstractSymbolicHeap
+
+final case class SymbolicHeapBtw(quantifiedVars: Seq[String],
+                                 pointsTo: PointsTo,
+                                 calls: Seq[PredicateCall],
+                                 equalities: Seq[Equality],
+                                 disEqualities: Seq[DisEquality]) extends AbstractSymbolicHeapBtw {
+  override val atoms: Seq[Atom] = pointsTo +: (calls ++ equalities ++ disEqualities)
+
+  def dropFirstQuantifiedVar(subst: Var): SymbolicHeapBtw = {
+    require(!freeVars.contains(subst))
+    require(quantifiedVars.nonEmpty)
+
+    val ren: Map[Var, Var] = Map((BoundVar(quantifiedVars.size), subst))
+
+    SymbolicHeapBtw(quantifiedVars.dropRight(1),
+                    pointsTo.substitute(ren),
+                    calls.map(_.substitute(ren)),
+                    equalities.map(_.substitute(ren)),
+                    disEqualities.map(_.substitute(ren)))
+  }
+
+  def instantiate(pred: SID.Predicate[SymbolicHeapBtw], args: Seq[Int], subst: Map[Var, Int]): Option[RuleInstance] = {
     require(allVars.subsetOf(subst.keySet))
 
     if (equalities.exists({ case Equality(left, right) => subst(left) != subst(right) })) {
@@ -41,36 +62,16 @@ final case class SymbolicHeap(quantifiedVars: Seq[String],
     if (disEqualities.exists({ case DisEquality(left, right) => subst(left) == subst(right) })) {
       return None
     }
-    if (spatial.size != 1) {
-      return None
-    }
 
-    val from = subst(spatial.head.from)
-    val to = spatial.head.to.map(subst)
+    val from = subst(pointsTo.from)
+    val to = pointsTo.to.map(subst)
     val callsReplaced: Seq[(String, Seq[Int])] = calls.map(c => (c.pred, c.args.map(subst)))
 
     Some(RuleInstance(pred, args, from, to, callsReplaced))
   }
 
-  def dropFirstQuantifiedVar(subst: Var): SymbolicHeap = {
-    require(!freeVars.contains(subst))
-    require(quantifiedVars.nonEmpty)
-
-    val ren: Map[Var, Var] = Map((BoundVar(quantifiedVars.size), subst))
-
-    SymbolicHeap(quantifiedVars.dropRight(1),
-                 spatial.map(_.substitute(ren)),
-                 calls.map(_.substitute(ren)),
-                 equalities.map(_.substitute(ren)),
-                 disEqualities.map(_.substitute(ren)))
-  }
 }
 
-final case class PointerClosedSymbolicHeap(quantifiedVars: Seq[String],
-                                           calls: Seq[PredicateCall],
-                                           equalities: Seq[Equality],
-                                           disEqualities: Seq[DisEquality]) extends AbstractSymbolicHeap {
-}
 
 object SymbolicHeap {
   def buildSymbolicHeap(quantifiedVars: Seq[String], atoms: Seq[Atom]): SymbolicHeap = {

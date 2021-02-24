@@ -55,7 +55,7 @@ class GslParser(val input: ParserInput) extends Parser {
 
   /*_*/
   private def _Sid: Rule1[SID] = rule {
-    zeroOrMore(_Rule) ~> ((rules: Seq[SID.Rule]) => SID(rules))
+    zeroOrMore(_Rule) ~> ((rules: Seq[SID.Rule]) => SID.buildSID(rules))
   }
   /*_*/
 

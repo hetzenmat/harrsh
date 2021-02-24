@@ -109,18 +109,21 @@ class StackForestProjectionTest extends AnyFlatSpec {
   }
 
   it should "correctly compute if a projection is delimited" in {
-    val sid = SID(Seq(Rule("ptr1", Seq("a", "b"), SymbolicHeap.buildSymbolicHeap(Seq(), Seq(Atom.PointsTo(FreeVar("a"), Seq(FreeVar("b"))))))))
+    SID.buildSID(Seq(Rule("my_ptr", Seq("a", "b"), SymbolicHeap.buildSymbolicHeap(Seq(), Seq(Atom.PointsTo(FreeVar("a"), Seq(FreeVar("b")))))))).toBtw match {
+      case Left(_) => fail()
+      case Right(sid) =>
 
-    val sfp1 = StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(P("ptr1")(a, b)), P("ptr1")(b, c))))
+        val sfp1 = StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(P("my_ptr")(a, b)), P("my_ptr")(b, c))))
 
-    assert(sfp1.isDelimited(sid))
+        assert(sfp1.isDelimited(sid))
 
-    val sfp2 = StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(P("ptr1")(a, b), P("ptr1")(a, c)), P("ptr1")(b, c))))
+        val sfp2 = StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(P("my_ptr")(a, b), P("my_ptr")(a, c)), P("my_ptr")(b, c))))
 
-    assert(!sfp2.isDelimited(sid))
+        assert(!sfp2.isDelimited(sid))
 
-    val sfp3 = StackForestProjection.from(SortedSet(_1), SortedSet(), Seq(TreeProjection(Seq(P("ptr1")(_1, b), P("ptr1")(a, c)), P("ptr1")(b, c))))
+        val sfp3 = StackForestProjection.from(SortedSet(_1), SortedSet(), Seq(TreeProjection(Seq(P("my_ptr")(_1, b), P("my_ptr")(a, c)), P("my_ptr")(b, c))))
 
-    assert(!sfp3.isDelimited(sid))
+        assert(!sfp3.isDelimited(sid))
+    }
   }
 }
