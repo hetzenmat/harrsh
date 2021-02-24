@@ -50,7 +50,16 @@ class SID private(val predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
 
           val pointsToSizes: Set[Int] = predicatesTransformed.values.flatMap(_.rules).map(_.pointsTo.to.size).toSet
 
-          Right(SID_btw(predicatesTransformed, pointsToSizes))
+          val predicatesWithPtrs = pointsToSizes.foldLeft(predicatesTransformed) { (map, number) =>
+            val name = "ptr" + number
+            val args = (1 to number + 1).map("x" + _)
+            val argsV = args.map(FreeVar)
+            map.updated(name, Predicate(name = name,
+              args = args,
+              rules = Seq(SymbolicHeapBtw(pointsTo = Atom.PointsTo(argsV.head, argsV.tail)))))
+          }
+
+          Right(SID_btw(predicatesWithPtrs, pointsToSizes))
         }
         else
           Left("SID does not satisfy establishment")
@@ -61,42 +70,42 @@ class SID private(val predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
   }
 
 
-
-
   private def toRootedSid(startPred: String): RichSid = {
     val ruleTuples = predicates.flatMap({
       case (predName, pred) =>
         pred.rules.map(body => {
           val spatial: Seq[SepLogAtom] = body.spatial.map(p => PointsTo(p.from, p.to))
           val pure: Seq[SepLogAtom] = body.equalities.map(p =>
-                                                            if (p.vars.size == 1)
-                                                              p.vars.head =:= p.vars.head
-                                                            else
-                                                              p.vars.head =:= p.vars.tail.head
-                                                          ) ++
+            if (p.vars.size == 1)
+              p.vars.head =:= p.vars.head
+            else
+              p.vars.head =:= p.vars.tail.head
+          ) ++
             body.disEqualities.map(p =>
-                                     if (p.vars.size == 1)
-                                       p.vars.head =/= p.vars.head
-                                     else
-                                       p.vars.head =/= p.vars.tail.head
-                                   )
+              if (p.vars.size == 1)
+                p.vars.head =/= p.vars.head
+              else
+                p.vars.head =/= p.vars.tail.head
+            )
           val calls: Seq[SepLogAtom] = body.calls.map(p => PredCall(p.pred, p.args))
           (predName, body.quantifiedVars, SH(spatial ++ pure ++ calls: _*))
         })
     }).toSeq
 
     SidFactory.makeRootedSid(startPred,
-                             "",
-                             predicates.map({
-                               case (predName, pred) => (predName, FreeVar(pred.args(pred.predrootIndex)))
-                             }),
-                             ruleTuples: _*)
+      "",
+      predicates.map({
+        case (predName, pred) => (predName, FreeVar(pred.args(pred.predrootIndex)))
+      }),
+      ruleTuples: _*)
   }
 }
 
 
 case class SID_btw private(predicates: Map[String, SID.Predicate[SymbolicHeapBtw]], pointsToSizes: Set[Int]) {
   require(pointsToSizes.forall(_ > 0))
+
+  val freeVars: Set[Var] = predicates.values.flatMap(_.freeVars).toSet
 
   def allRuleInstancesForPointsTo(from: Int, to: Seq[Int], range: Range): Iterable[(Map[Var, Int], RuleInstance)] = {
 
@@ -105,6 +114,7 @@ case class SID_btw private(predicates: Map[String, SID.Predicate[SymbolicHeapBtw
                           instantiationSize = pred.args.length + rule.quantifiedVars.length;
                           instantiation <- Utils.allSeqsWithRange(instantiationSize, range);
                           subst: Map[Var, Int] = (rule.freeVars ++ (1 to rule.quantifiedVars.length).map(BoundVar)).zip(instantiation).toMap) yield (subst, rule.instantiate(pred, instantiation.take(pred.args.length), subst))
+
 
     candidates.collect({ case (v, Some(r@RuleInstance(_, _, from_, to_, _))) if from == from_ && to == to_ => (v, r) })
   }
@@ -116,6 +126,8 @@ object SID {
 
   case class Predicate[T <: AbstractSymbolicHeap](name: String, args: Seq[String], rules: Seq[T]) {
 
+    val freeVars: Set[Var] = args.map(FreeVar).toSet
+
     /**
       * If the predicate satisfies progress, predrootIndex >= 0 and -1 otherwise.
       */
@@ -125,7 +137,7 @@ object SID {
           case sh: SymbolicHeap => sh.spatial.size == 1 && sh.spatial.head.from == FreeVar(args(i))
           case sh: SymbolicHeapBtw => sh.pointsTo.from == FreeVar(args(i))
         }
-        ) match {
+      ) match {
         case None => -1
         case Some(i) => i
       }

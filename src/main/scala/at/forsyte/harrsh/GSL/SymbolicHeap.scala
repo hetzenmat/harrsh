@@ -33,11 +33,11 @@ final case class SymbolicHeap(quantifiedVars: Seq[String],
 
 sealed trait AbstractSymbolicHeapBtw extends AbstractSymbolicHeap
 
-final case class SymbolicHeapBtw(quantifiedVars: Seq[String],
+final case class SymbolicHeapBtw(quantifiedVars: Seq[String] = Seq(),
                                  pointsTo: PointsTo,
-                                 calls: Seq[PredicateCall],
-                                 equalities: Seq[Equality],
-                                 disEqualities: Seq[DisEquality]) extends AbstractSymbolicHeapBtw {
+                                 calls: Seq[PredicateCall] = Seq(),
+                                 equalities: Seq[Equality] = Seq(),
+                                 disEqualities: Seq[DisEquality] = Seq()) extends AbstractSymbolicHeapBtw {
   override val atoms: Seq[Atom] = pointsTo +: (calls ++ equalities ++ disEqualities)
 
   def dropFirstQuantifiedVar(subst: Var): SymbolicHeapBtw = {

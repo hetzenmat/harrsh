@@ -11,14 +11,16 @@ sealed trait GslFormula {
   type T <: GslFormula
 
   def substitute(substitution: Map[Var, Var]): T
+
+  val vars: Set[Var]
+  val predicateCalls: Set[String]
+  lazy val freeVars: Set[Var] = vars.collect { case v: FreeVar => v }
 }
 
 object GslFormula {
 
   sealed trait Atom extends GslFormula {
     type T = Atom
-
-    def vars: Set[Var]
   }
 
   object Atom {
@@ -26,23 +28,26 @@ object GslFormula {
     final case class Emp() extends Atom {
       override def substitute(substitution: Map[Var, Var]): Emp = this
 
-      override def vars: Set[Var] = Set.empty
+      override val vars: Set[Var] = Set.empty
+      override val predicateCalls: Set[String] = Set.empty
     }
 
     final case class Equality(left: Var, right: Var) extends Atom {
 
       override def substitute(substitution: Map[Var, Var]): Equality = Equality(substitution.getOrElse(left, left),
-                                                                                substitution.getOrElse(right, right))
+        substitution.getOrElse(right, right))
 
-      override def vars: Set[Var] = Set(left, right)
+      override val vars: Set[Var] = Set(left, right)
+      override val predicateCalls: Set[String] = Set.empty
     }
 
     final case class DisEquality(left: Var, right: Var) extends Atom {
       override def substitute(substitution: Map[Var, Var]): DisEquality = DisEquality(substitution.getOrElse(left, left),
-                                                                                      substitution.getOrElse(right, right))
+        substitution.getOrElse(right, right))
 
 
-      override def vars: Set[Var] = Set(left, right)
+      override val vars: Set[Var] = Set(left, right)
+      override val predicateCalls: Set[String] = Set.empty
     }
 
     final case class PointsTo(from: Var, to: Seq[Var]) extends Atom {
@@ -50,19 +55,17 @@ object GslFormula {
 
       def ptrmodel(ac: AliasingConstraint): Map[Var, Int] = ac.eqClass.map(kv => (kv._1, kv._2 + 1))
 
-      override def vars: Set[Var] = to.prepended(from).toSet
+      override val vars: Set[Var] = (to :+ from).toSet
+      override val predicateCalls: Set[String] = Set.empty
+
     }
 
     final case class PredicateCall(pred: String, args: Seq[Var]) extends Atom with Ordered[PredicateCall] {
       override def substitute(substitution: Map[Var, Var]): PredicateCall = PredicateCall(pred, args.map(v => substitution.getOrElse(v, v)))
 
-      override def vars: Set[Var] = args.toSet
+      override val vars: Set[Var] = args.toSet
 
       def boundVars: Set[BoundVar] = args.collect({ case v: BoundVar => v }).toSet
-
-      def freeVars: Set[FreeVar] = args.collect({ case v: FreeVar => v }).toSet
-
-      def pointsTo: Boolean = "^ptr[1-9][0-9]+$".r.matches(pred)
 
       override def toString: String = {
         pred + args.mkString("(", ", ", ")")
@@ -75,6 +78,8 @@ object GslFormula {
         else
           res
       }
+
+      override val predicateCalls: Set[String] = Set(pred)
     }
 
   }
@@ -84,6 +89,10 @@ object GslFormula {
 
     override def substitute(substitution: Map[Var, Var]): T =
       SeparatingConjunction(left.substitute(substitution), right.substitute(substitution))
+
+    override val vars: Set[Var] = left.vars union right.vars
+    override val predicateCalls: Set[String] = left.predicateCalls union right.predicateCalls
+
   }
 
   final case class StandardConjunction(left: GslFormula, right: GslFormula) extends GslFormula {
@@ -91,6 +100,9 @@ object GslFormula {
 
     override def substitute(substitution: Map[Var, Var]): T =
       StandardConjunction(left.substitute(substitution), right.substitute(substitution))
+
+    override val vars: Set[Var] = left.vars union right.vars
+    override val predicateCalls: Set[String] = left.predicateCalls union right.predicateCalls
   }
 
   final case class Disjunction(left: GslFormula, right: GslFormula) extends GslFormula {
@@ -98,6 +110,9 @@ object GslFormula {
 
     override def substitute(substitution: Map[Var, Var]): T =
       Disjunction(left.substitute(substitution), right.substitute(substitution))
+
+    override val vars: Set[Var] = left.vars union right.vars
+    override val predicateCalls: Set[String] = left.predicateCalls union right.predicateCalls
   }
 
   final case class Negation(guard: GslFormula, negated: GslFormula) extends GslFormula {
@@ -105,6 +120,9 @@ object GslFormula {
 
     override def substitute(substitution: Map[Var, Var]): T =
       Negation(guard.substitute(substitution), negated.substitute(substitution))
+
+    override val vars: Set[Var] = guard.vars union negated.vars
+    override val predicateCalls: Set[String] = guard.predicateCalls union negated.predicateCalls
   }
 
   final case class MagicWand(guard: GslFormula, left: GslFormula, right: GslFormula) extends GslFormula {
@@ -112,6 +130,10 @@ object GslFormula {
 
     override def substitute(substitution: Map[Var, Var]): T =
       MagicWand(guard.substitute(substitution), left.substitute(substitution), right.substitute(substitution))
+
+    override val vars: Set[Var] = guard.vars union left.vars union right.vars
+    override val predicateCalls: Set[String] = guard.predicateCalls union left.predicateCalls union right.predicateCalls
+
   }
 
   final case class Septraction(guard: GslFormula, left: GslFormula, right: GslFormula) extends GslFormula {
@@ -119,6 +141,9 @@ object GslFormula {
 
     override def substitute(substitution: Map[Var, Var]): T =
       Septraction(guard.substitute(substitution), left.substitute(substitution), right.substitute(substitution))
+
+    override val vars: Set[Var] = guard.vars union left.vars union right.vars
+    override val predicateCalls: Set[String] = guard.predicateCalls union left.predicateCalls union right.predicateCalls
   }
 
 }

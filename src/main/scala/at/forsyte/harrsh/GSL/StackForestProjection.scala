@@ -190,7 +190,7 @@ object StackForestProjection {
 
   def boundVariables(formula: Seq[TreeProjection]): Set[BoundVar] = formulaFlatMap(formula, _.boundVars).toSet
 
-  def freeVariables(formula: Seq[TreeProjection]): Set[FreeVar] = formulaFlatMap(formula, _.freeVars).toSet
+  def freeVariables(formula: Seq[TreeProjection]): Set[FreeVar] = formulaFlatMap(formula, _.freeVars).toSet.asInstanceOf[Set[FreeVar]]
 
   def composition(left: StackForestProjection, right: StackForestProjection): Set[StackForestProjection] = {
     allRescopings(left, right).flatMap(sfp => sfp.derivableSet)

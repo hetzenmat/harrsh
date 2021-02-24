@@ -48,7 +48,6 @@ class GslParser(val input: ParserInput) extends Parser {
       ws("query") ~ ws('{') ~ _SeparatingConjunction ~ ws("|=") ~ _SeparatingConjunction ~ ws('}') ~> ((left: GslFormula, right: GslFormula) => (Negation(left, right), true))
   }
 
-
   private def _SidSection: Rule1[SID] = rule {
     ws("sid") ~ ws('{') ~ _Sid ~ ws('}')
   }
@@ -57,6 +56,7 @@ class GslParser(val input: ParserInput) extends Parser {
   private def _Sid: Rule1[SID] = rule {
     zeroOrMore(_Rule) ~> ((rules: Seq[SID.Rule]) => SID.buildSID(rules))
   }
+
   /*_*/
 
   private def _Rule: Rule1[SID.Rule] = rule {
