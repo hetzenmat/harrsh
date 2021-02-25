@@ -40,6 +40,14 @@ final case class SymbolicHeapBtw(quantifiedVars: Seq[String] = Seq(),
                                  disEqualities: Seq[DisEquality] = Seq()) extends AbstractSymbolicHeapBtw {
   override val atoms: Seq[Atom] = pointsTo +: (calls ++ equalities ++ disEqualities)
 
+  def substitute(subst: Map[Var, Var]): SymbolicHeapBtw = {
+    SymbolicHeapBtw(quantifiedVars = quantifiedVars,
+                    pointsTo = pointsTo.substitute(subst),
+                    calls = calls.map(_.substitute(subst)),
+                    equalities = equalities.map(_.substitute(subst)),
+                    disEqualities = disEqualities.map(_.substitute(subst)))
+  }
+
   def dropFirstQuantifiedVar(subst: Var): SymbolicHeapBtw = {
     require(!freeVars.contains(subst))
     require(quantifiedVars.nonEmpty)

@@ -11,7 +11,7 @@ class EntailmentTest extends AnyFlatSpec {
   object SIDs {
     private def get(s: String): SID = {
       new GslParser(s).parseSID.run() match {
-        case Failure(_) => fail()
+        case Failure(f) => { println(f); fail() }
         case Success(sid) => sid
       }
     }
@@ -32,10 +32,8 @@ class EntailmentTest extends AnyFlatSpec {
   }
 
   "Type computation" should "correctly decide entailments" in {
-    println(SIDs.lseg)
-
-    val left = parseFormula("lseg(x1, x2) /\\ lseg(x2, x3)")
-    val right = parseFormula("lseg(x1, x3)")
+    val left = parseFormula("lseg(a, b) * lseg(b, c)")
+    val right = parseFormula("lseg(a, d)")
 
     val q = Query(Negation(left, right), SIDs.lseg, fromEntailment = true)
 

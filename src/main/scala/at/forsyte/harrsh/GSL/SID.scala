@@ -161,7 +161,8 @@ object SID {
         map.updatedWith(rule.name) {
           case None => Some(Predicate(rule.name, rule.args, Seq(rule.body)))
           case Some(pred) =>
-            require(rule.args == pred.args, "Arguments have to be the same for all rules of a predicate")
+            //TODO
+            //require(rule.args == pred.args, "Arguments have to be the same for all rules of a predicate")
 
             Some(Predicate(rule.name, rule.args, pred.rules.appended(rule.body)))
         }

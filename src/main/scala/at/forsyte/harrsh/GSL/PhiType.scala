@@ -8,11 +8,11 @@ import at.forsyte.harrsh.seplog.{FreeVar, Var}
   */
 case class PhiType(projections: Set[StackForestProjection]) {
   def alloced(sid: SID_btw): Set[FreeVar] = projections.flatMap(_.formula
-    .map(_.rootpred.pred)
-    .map(sid.predicates)
-    .map(_.predroot))
+                                                                 .map(_.rootpred.pred)
+                                                                 .map(sid.predicates)
+                                                                 .map(_.predroot))
 
-  def freeVars: Set[FreeVar] = projections.flatMap(_.freeVars).toSet
+  def freeVars: Set[FreeVar] = projections.flatMap(_.freeVars)
 
   def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint): PhiType = {
     PhiType.rename(x, y, ac, Set(this)).head
@@ -70,7 +70,7 @@ object PhiType {
     val subst: Map[Var, Var] = y.zip(yReplaced).toMap
 
     // TODO: Recheck definition
-    val z = acSup.partition.map(_.max).filterNot(ac.domain).asInstanceOf[Seq[FreeVar]]
+    val z = acSup.partition.map(_.max).filter(z_ => ac.domain.forall(y => acSup =/= (y, z_))).asInstanceOf[Seq[FreeVar]]
 
     types.map({ case PhiType(projections) =>
       def aux: Int => PhiType = {

@@ -38,18 +38,18 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
     val ySet = y.toSet
     require(x.length == xSet.size)
     require(x.length == y.length)
-    println(x, y, domain)
     require(domain.intersect(xSet).isEmpty)
+
     require(ySet.subsetOf(domain))
 
-    val yMap: Map[Int, Var] = y.map(eqClass).zip(y).toMap
-    val toChange = yMap.keySet
+    val yMap: Seq[(Int, Var)] = y.map(eqClass).zip(y)
+    val toChange = yMap.map(_._1).toSet
     val rel = x.zip(y)
 
     val newPartition = partition.zipWithIndex.map({
       case (set, idx) =>
         if (toChange contains idx) {
-          set.union(Set.from(rel.filter({ case (_, yy) => yy == yMap(idx) }).map(_._1)))
+          set.union(Set.from(rel.filter({ case (_, yy) => yMap.exists(t => t._1 == idx && t._2 == yy) }).map(_._1)))
         } else {
           set
         }
@@ -61,7 +61,18 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
   }
 
   def restricted(v: Set[Var]): AliasingConstraint = {
-    AliasingConstraint(partition.map(_.diff(v)), eqClass.filterNot(t => v.contains(t._1)))
+    val partitionRemoved = partition.map(_.intersect(v))
+    val eqClassFiltered = eqClass.filter(t => v.contains(t._1))
+
+    val emptySetsIndices = partitionRemoved.zipWithIndex.filter(_._1.isEmpty).map(_._2)
+
+    val partitionFiltered = partitionRemoved.filter(_.nonEmpty)
+
+    val eqClassReordered = eqClassFiltered.map({ case (k, idx) =>
+      (k, idx - emptySetsIndices.count(_ < idx))
+    })
+
+    AliasingConstraint(partitionFiltered, eqClassReordered)
   }
 }
 
