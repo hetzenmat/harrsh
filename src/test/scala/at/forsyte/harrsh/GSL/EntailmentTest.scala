@@ -33,7 +33,7 @@ class EntailmentTest extends AnyFlatSpec {
 
   "Type computation" should "correctly decide entailments" in {
     val left = parseFormula("lseg(a, b) * lseg(b, c)")
-    val right = parseFormula("lseg(a, d)")
+    val right = parseFormula("lseg(a, c)")
 
     val q = Query(Negation(left, right), SIDs.lseg, fromEntailment = true)
 

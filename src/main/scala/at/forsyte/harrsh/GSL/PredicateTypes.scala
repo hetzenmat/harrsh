@@ -17,7 +17,9 @@ class PredicateTypes(val sid: SID_btw) extends LazyLogging {
   def ptypes(atom: Atom, ac: AliasingConstraint): Iterable[PhiType] = atom match {
     case e: Equality => TC.types(e, ac)
     case d: DisEquality => TC.types(d, ac)
-    case p: PointsTo => TC.types(p, ac)
+    case p: PointsTo =>
+      val r = TC.types(p, ac)
+      r
     case PredicateCall(predName, args) =>
       val pred = sid.predicates(predName)
 
@@ -27,11 +29,12 @@ class PredicateTypes(val sid: SID_btw) extends LazyLogging {
       val acExtendedRestricted = acExtended.restricted(ac.domain.union(parameters.toSet))
 
       val types = state((pred, acExtendedRestricted))
-      val typesRenamed = PhiType.rename(parameters, args.asInstanceOf[Seq[FreeVar]], ac, types)
+      //val typesRenamed = PhiType.rename(parameters, args.asInstanceOf[Seq[FreeVar]], ac, types)
 
-      val typesExtended = PhiType.extend(ac, acExtended, typesRenamed)
+      val typesExtended = PhiType.extend(ac, acExtended, types)
 
-      typesExtended
+      //println("Ext: " + typesExtended)
+      PhiType.rename(parameters, args.asInstanceOf[Seq[FreeVar]], ac, typesExtended)
   }
 
   def ptypes(atoms: Seq[Atom], ac: AliasingConstraint): Iterable[PhiType] = atoms match {
@@ -63,6 +66,7 @@ class PredicateTypes(val sid: SID_btw) extends LazyLogging {
 
   @tailrec
   private def unfold(pred: SID.Predicate[SymbolicHeapBtw], args: Seq[Var], ac: AliasingConstraint): mutable.Set[PhiType] = {
+    //println("unfold")
     val subst: Map[Var, Var] = pred.args.map(FreeVar).zip(args).toMap
     val tuple = (pred, ac)
     if (finished contains tuple) {
@@ -72,14 +76,18 @@ class PredicateTypes(val sid: SID_btw) extends LazyLogging {
       for (rule <- pred.rules) {
         val renamed = rule.substitute(subst)
         val discovered = ptypes(renamed, ac)
+        //println("discovered: " + discovered)
         newTypes.addAll(discovered)
       }
 
-      if (state(tuple) == newTypes) {
+      val prevSize = state(tuple).size
+      state(tuple).addAll(newTypes)
+
+      if (state(tuple).size == prevSize) {
         finished.add(tuple)
+       // println("finished, " + state(tuple))
         state(tuple)
       } else {
-        state(tuple).addAll(newTypes)
         unfold(pred, args, ac)
       }
     }

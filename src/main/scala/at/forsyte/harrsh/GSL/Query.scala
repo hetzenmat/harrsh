@@ -30,9 +30,15 @@ case class Query(formula: GslFormula, sid: SID, fromEntailment: Boolean) {
         val newFvars = formulaRenamed.freeVars
 
         Right(AliasingConstraint.allAliasingConstraints(newFvars).exists(ac => {
+          println("Current AC: " + ac + "\n")
+
           val tc = new TypeComputation(sidBTW, newFvars)
 
-          tc.types(formulaRenamed, ac).nonEmpty
+          val types = tc.types(formulaRenamed, ac)
+
+          println("Result: " + types)
+
+          types.nonEmpty
         }))
     }
 }

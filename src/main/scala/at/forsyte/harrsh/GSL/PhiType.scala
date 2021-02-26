@@ -7,10 +7,10 @@ import at.forsyte.harrsh.seplog.{FreeVar, Var}
   * Created by Matthias Hetzenberger on 2021-02-13
   */
 case class PhiType(projections: Set[StackForestProjection]) {
-  def alloced(sid: SID_btw): Set[FreeVar] = projections.flatMap(_.formula
-                                                                 .map(_.rootpred.pred)
-                                                                 .map(sid.predicates)
-                                                                 .map(_.predroot))
+  def alloced(sid: SID_btw): Set[FreeVar] = projections.
+                                            flatMap(_.formula)
+                                            .map(_.rootpred)
+                                            .map(c => c.args(sid.predicates(c.pred).predrootIndex)).asInstanceOf[Set[FreeVar]]
 
   def freeVars: Set[FreeVar] = projections.flatMap(_.freeVars)
 
@@ -35,7 +35,7 @@ object PhiType {
 
   def empty: PhiType = PhiType(Set.empty)
 
-  def composition(sid: SID_btw, left: PhiType, right: PhiType): Option[PhiType] =
+  def composition(sid: SID_btw, left: PhiType, right: PhiType): Option[PhiType] = {
     if ((left.alloced(sid) intersect right.alloced(sid)).isEmpty) {
       val projections = for (phi1 <- left.projections;
                              phi2 <- right.projections) yield StackForestProjection.composition(phi1, phi2)
@@ -43,6 +43,7 @@ object PhiType {
     } else {
       None
     }
+  }
 
   def composition(sid: SID_btw, left: Iterable[PhiType], right: Iterable[PhiType]): Iterable[PhiType] =
     (for (l <- left;
@@ -88,6 +89,8 @@ object PhiType {
 
     val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size)
 
-    PhiType(R.map({ case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm) }).filter(_.isDelimited(sid)).toSet)
+    val r = PhiType(R.map({ case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm) }).filter(_.isDelimited(sid)).toSet)
+
+    r
   }
 }

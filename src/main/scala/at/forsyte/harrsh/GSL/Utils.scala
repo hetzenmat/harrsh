@@ -21,6 +21,6 @@ object Utils {
     if (a.isEmpty)
       true
     else
-      a.zip(a.tail).forall(t => t._1 < t._2)
+      a.zip(a.tail).forall(t => t._1 <= t._2)
   }
 }
