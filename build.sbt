@@ -25,6 +25,7 @@ libraryDependencies += "org.parboiled" %% "parboiled" % "2.2.1"
 
 scalacOptions ++= Seq("-deprecation",
                       "-feature",
+                      "-optimize",
                       "-explaintypes",
                       "-Xdev",
                       "-Xlint:_")

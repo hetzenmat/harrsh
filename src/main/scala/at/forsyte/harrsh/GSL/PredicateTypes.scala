@@ -8,30 +8,43 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-class PredicateTypes(val sid: SID_btw) extends LazyLogging {
+// Test: remove x variables
+class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
   private val state: mutable.Map[(SID.Predicate[SymbolicHeapBtw], AliasingConstraint), mutable.Set[PhiType]] = collection.mutable.Map.empty.withDefaultValue(mutable.Set.empty)
-  private val finished: mutable.Set[(SID.Predicate[SymbolicHeapBtw], AliasingConstraint)] = mutable.Set.empty
+  private val finished: mutable.Set[AliasingConstraint] = mutable.Set.empty
 
-  private val TC = new TypeComputation(sid, Set.empty)
 
   def ptypes(atom: Atom, ac: AliasingConstraint): Iterable[PhiType] = atom match {
-    case e: Equality => TC.types(e, ac)
-    case d: DisEquality => TC.types(d, ac)
-    case p: PointsTo => TC.types(p, ac)
+    case e: Equality => TypeComputation.equality(e, ac)
+    case d: DisEquality => TypeComputation.disEquality(d, ac)
+    case p: PointsTo =>
+      val r = Set(PhiType.ptrmodel(sid, ac, p))
+      r
     case PredicateCall(predName, args) =>
       val pred = sid.predicates(predName)
 
       val parameters = pred.args.map(FreeVar)
 
-      val acExtended = ac.reverseRenaming(parameters, args)
-      val acExtendedRestricted = acExtended.restricted(ac.domain.union(parameters.toSet))
+      // Replace variables in current ac that are also parameters by placeholders
+
+      val parametersPlaceholders = parameters.zipWithIndex.map(t => (t._1, FreeVar("?" + (t._2 + 1))))
+
+      val subst: Map[Var, Var] = parametersPlaceholders.toMap
+      val acPlaceholders = ac.rename(subst)
+      val argsPlaceholders = args.map(v => subst.getOrElse(v, v))
+
+      require((parameters intersect argsPlaceholders).isEmpty)
+      val acExtended = acPlaceholders.reverseRenaming(parameters, argsPlaceholders)
+
+      val acExtendedRestricted = acExtended.restricted(x union parameters.toSet)
 
       val types = state((pred, acExtendedRestricted))
-      val typesRenamed = PhiType.rename(parameters, args.asInstanceOf[Seq[FreeVar]], ac, types)
+      //val typesRenamed = PhiType.rename(parameters, args.asInstanceOf[Seq[FreeVar]], ac, types)
 
-      val typesExtended = PhiType.extend(ac, acExtended, typesRenamed)
+      val typesExtended = PhiType.extend(acPlaceholders, acExtended, types)
 
-      typesExtended
+      //println("Ext: " + typesExtended)
+      PhiType.rename(parameters, args.asInstanceOf[Seq[FreeVar]], ac, typesExtended)
   }
 
   def ptypes(atoms: Seq[Atom], ac: AliasingConstraint): Iterable[PhiType] = atoms match {
@@ -49,39 +62,43 @@ class PredicateTypes(val sid: SID_btw) extends LazyLogging {
       })
     } else ptypes(sh.atoms, ac)
 
-  /**
-    * @param predicateCall The predicate call whose type shall be computed
-    * @param ac            The aliasing constraint of the actual arguments
-    */
-  def computeTypes(predicateCall: PredicateCall, ac: AliasingConstraint): Iterable[PhiType] = {
-    val pred = sid.predicates(predicateCall.pred)
-    require(pred.args.length == predicateCall.args.length)
-    require((pred.args.map(FreeVar).toSet[Var] intersect predicateCall.args.toSet).isEmpty)
+  def getType(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
+    if (!finished.contains(ac)) {
+      unfold(ac)
+    }
 
-    unfold(pred, predicateCall.args, ac)
+    state((pred, ac)).toSet
   }
 
-  @tailrec
-  private def unfold(pred: SID.Predicate[SymbolicHeapBtw], args: Seq[Var], ac: AliasingConstraint): mutable.Set[PhiType] = {
-    val subst: Map[Var, Var] = pred.args.map(FreeVar).zip(args).toMap
-    val tuple = (pred, ac)
-    if (finished contains tuple) {
-      state(tuple)
-    } else {
-      val newTypes = mutable.Set.empty[PhiType]
-      for (rule <- pred.rules) {
-        val renamed = rule.substitute(subst)
-        val discovered = ptypes(renamed, ac)
-        newTypes.addAll(discovered)
-      }
+  private def unfold(ac: AliasingConstraint): Unit = {
 
-      if (state(tuple) == newTypes) {
-        finished.add(tuple)
-        state(tuple)
-      } else {
-        state(tuple).addAll(newTypes)
-        unfold(pred, args, ac)
+    var changed = true
+    var it = 0
+
+    while (changed) {
+      it += 1
+      println("Unfold iteration " + it)
+
+      changed = false
+      for (pred <- sid.predicates.values) {
+        val newTypes = mutable.Set.empty[PhiType]
+
+        for (rule <- pred.rules) {
+
+          val discovered = ptypes(rule, ac)
+          //println("discovered: " + discovered)
+          newTypes.addAll(discovered)
+        }
+
+        val prevSize = state((pred, ac)).size
+        state((pred, ac)).addAll(newTypes)
+
+        if (state((pred, ac)).size != prevSize) changed = true
       }
     }
+
+    finished.add(ac)
   }
+
+
 }

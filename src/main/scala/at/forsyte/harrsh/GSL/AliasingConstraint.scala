@@ -1,5 +1,6 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL.Utils.SetUtils
 import at.forsyte.harrsh.seplog.Var
 
 import scala.collection.SortedSet
@@ -15,7 +16,10 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
 
   require(eqClass.forall({ case (k, v) => partition(v).contains(k) }), "Equivalence mapping is not valid")
 
-  def largestAlias(v: Var): Var = this (v).max
+  def largestAlias(v: Var): Var = eqClass.get(v) match {
+    case Some(value) => partition(value).max
+    case None => v
+  }
 
   def apply(v: Var): SortedSet[Var] = partition(eqClass(v))
 
@@ -31,6 +35,15 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
     Set.from(partition.zipWithIndex.map({
       case (set, idx) => AliasingConstraint(partition.updated(idx, set.union(Set(v))), eqClass.updated(v, idx))
     })).incl(AliasingConstraint(partition :+ SortedSet(v), eqClass.updated(v, partition.size)))
+  }
+
+  def rename(subst: Map[Var, Var]): AliasingConstraint = {
+    require(domain.disjoint(subst.values.toSet))
+
+    val newPartition = partition.map(ss => ss.map(v => subst.getOrElse(v, v)))
+    val newEqClass = eqClass.map(kv => (subst.getOrElse(kv._1, kv._1), kv._2))
+
+    AliasingConstraint(newPartition, newEqClass)
   }
 
   def reverseRenaming(x: Seq[Var], y: Seq[Var]): AliasingConstraint = {

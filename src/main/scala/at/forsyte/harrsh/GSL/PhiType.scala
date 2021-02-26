@@ -3,16 +3,18 @@ package at.forsyte.harrsh.GSL
 import at.forsyte.harrsh.GSL.GslFormula.Atom.PointsTo
 import at.forsyte.harrsh.seplog.{FreeVar, Var}
 
+import scala.collection.SortedSet
+
 /**
   * Created by Matthias Hetzenberger on 2021-02-13
   */
-case class PhiType(projections: Set[StackForestProjection]) {
-  def alloced(sid: SID_btw): Set[FreeVar] = projections.flatMap(_.formula
-                                                                 .map(_.rootpred.pred)
-                                                                 .map(sid.predicates)
-                                                                 .map(_.predroot))
+case class PhiType(projections: SortedSet[StackForestProjection]) {
+  def alloced(sid: SID_btw): Set[FreeVar] = projections.
+                                            flatMap(_.formula)
+                                            .map(_.rootpred)
+                                            .map(c => c.args(sid.predicates(c.pred).predrootIndex)).asInstanceOf[Set[FreeVar]]
 
-  def freeVars: Set[FreeVar] = projections.flatMap(_.freeVars)
+  def freeVars: SortedSet[FreeVar] = projections.flatMap(_.freeVars)
 
   def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint): PhiType = {
     PhiType.rename(x, y, ac, Set(this)).head
@@ -33,16 +35,22 @@ case class PhiType(projections: Set[StackForestProjection]) {
 
 object PhiType {
 
-  def empty: PhiType = PhiType(Set.empty)
+  def from(it: Iterable[StackForestProjection]): PhiType = PhiType(SortedSet.from(it))
 
-  def composition(sid: SID_btw, left: PhiType, right: PhiType): Option[PhiType] =
+  def empty: PhiType = PhiType.from(Seq(new StackForestProjection(SortedSet.empty,
+                                                                  SortedSet.empty,
+                                                                  SortedSet.empty)))
+
+  def composition(sid: SID_btw, left: PhiType, right: PhiType): Option[PhiType] = {
     if ((left.alloced(sid) intersect right.alloced(sid)).isEmpty) {
-      val projections = for (phi1 <- left.projections;
-                             phi2 <- right.projections) yield StackForestProjection.composition(phi1, phi2)
-      Some(PhiType(projections.flatten.filter(_.isDelimited(sid))))
+
+      val projections = for (phi1 <- left.projections.unsorted;
+                             phi2 <- right.projections.unsorted) yield StackForestProjection.composition(phi1, phi2)
+      Some(PhiType.from(projections.flatten.filter(_.isDelimited(sid))))
     } else {
       None
     }
+  }
 
   def composition(sid: SID_btw, left: Iterable[PhiType], right: Iterable[PhiType]): Iterable[PhiType] =
     (for (l <- left;
@@ -86,8 +94,11 @@ object PhiType {
 
     val pm = pointsTo.ptrmodel(ac)
 
-    val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size)
+    val k = sid.predicates.values.map(_.args.length).max - 1
+    val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size + k)
 
-    PhiType(R.map({ case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm) }).filter(_.isDelimited(sid)).toSet)
+    val r = PhiType.from(R.map({ case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm) }).filter(_.isDelimited(sid)))
+
+    r
   }
 }

@@ -14,7 +14,7 @@
         <appender-ref ref="STDOUT" />
     </root>
 
-    <logger name="at.forsyte.harrsh" level="WARN" />
+    <logger name="at.forsyte.harrsh" level="DEBUG" />
 
     <!---
 

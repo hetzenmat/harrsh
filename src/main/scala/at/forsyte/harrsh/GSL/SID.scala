@@ -30,7 +30,6 @@ class SID private(val predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
   lazy val satisfiesEstablishment: Boolean = {
     predicates.keys.forall(p => {
       val sid = toRootedSid(p)
-      println(sid)
 
       // Runs of establishment automaton and non-establishment automaton is somehow needed to also filter out
       // partially-established SIDs
@@ -48,18 +47,19 @@ class SID private(val predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
               (name, Predicate(predName, args, rules.map(_.toBtw)))
           })
 
-          val pointsToSizes: Set[Int] = predicatesTransformed.values.flatMap(_.rules).map(_.pointsTo.to.size).toSet
+          // TODO
+          //val pointsToSizes: Set[Int] = predicatesTransformed.values.flatMap(_.rules).map(_.pointsTo.to.size).toSet
 
-          val predicatesWithPtrs = pointsToSizes.foldLeft(predicatesTransformed) { (map, number) =>
-            val name = "ptr" + number
-            val args = (1 to number + 1).map("x" + _)
-            val argsV = args.map(FreeVar)
-            map.updated(name, Predicate(name = name,
-              args = args,
-              rules = Seq(SymbolicHeapBtw(pointsTo = Atom.PointsTo(argsV.head, argsV.tail)))))
-          }
+//          val predicatesWithPtrs = pointsToSizes.foldLeft(predicatesTransformed) { (map, number) =>
+//            val name = "ptr" + number
+//            val args = (1 to number + 1).map("x" + _)
+//            val argsV = args.map(FreeVar)
+//            map.updated(name, Predicate(name = name,
+//              args = args,
+//              rules = Seq(SymbolicHeapBtw(pointsTo = Atom.PointsTo(argsV.head, argsV.tail)))))
+//          }
 
-          Right(SID_btw(predicatesWithPtrs, pointsToSizes))
+          Right(SID_btw(predicatesTransformed, Set()))
         }
         else
           Left("SID does not satisfy establishment")
@@ -113,7 +113,7 @@ case class SID_btw private(predicates: Map[String, SID.Predicate[SymbolicHeapBtw
                           rule <- pred.rules if rule.pointsTo.to.length == to.length;
                           instantiationSize = pred.args.length + rule.quantifiedVars.length;
                           instantiation <- Utils.allSeqsWithRange(instantiationSize, range);
-                          subst: Map[Var, Int] = (rule.freeVars ++ (1 to rule.quantifiedVars.length).map(BoundVar)).zip(instantiation).toMap) yield (subst, rule.instantiate(pred, instantiation.take(pred.args.length), subst))
+                          subst: Map[Var, Int] = (pred.args.map(FreeVar) ++ (1 to rule.quantifiedVars.length).map(BoundVar)).zip(instantiation).toMap) yield (subst, rule.instantiate(pred, instantiation.take(pred.args.length), subst))
 
 
     candidates.collect({ case (v, Some(r@RuleInstance(_, _, from_, to_, _))) if from == from_ && to == to_ => (v, r) })

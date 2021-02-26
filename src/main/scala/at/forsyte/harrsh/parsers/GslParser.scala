@@ -76,7 +76,7 @@ class GslParser(val input: ParserInput) extends Parser {
   }
 
   private def _SeparatingConjunction: Rule1[GslFormula] = rule {
-    _Disjunction ~ ws('*') ~ _Disjunction ~> ((left, right) => SeparatingConjunction(left, right)) |
+    _Disjunction ~ oneOrMore(ws('*') ~ _Disjunction) ~> ((left, right) => SeparatingConjunction.from(left, right)) |
       _Disjunction
   }
 

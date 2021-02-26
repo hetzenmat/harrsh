@@ -2,11 +2,11 @@ package at.forsyte.harrsh.GSL
 
 import GslFormula.Atom._
 import at.forsyte.harrsh.GSL.GslFormula.Atom
-import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
+import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 
 sealed abstract class AbstractSymbolicHeap() {
   val atoms: Seq[Atom]
-  final lazy val allVars: Set[Var] = atoms.flatMap(_.vars).toSet
+  final lazy val allVars: Set[Var] = atoms.flatMap(_.vars).toSet.excl(NullConst)
   final lazy val freeVars: Set[Var] = allVars.collect { case a: FreeVar => a }
 
 }
@@ -61,8 +61,10 @@ final case class SymbolicHeapBtw(quantifiedVars: Seq[String] = Seq(),
                     disEqualities.map(_.substitute(ren)))
   }
 
-  def instantiate(pred: SID.Predicate[SymbolicHeapBtw], args: Seq[Int], subst: Map[Var, Int]): Option[RuleInstance] = {
-    require(allVars.subsetOf(subst.keySet))
+  def instantiate(pred: SID.Predicate[SymbolicHeapBtw], args: Seq[Int], substt: Map[Var, Int]): Option[RuleInstance] = {
+    require(allVars.subsetOf(substt.keySet))
+
+    val subst = substt.updated(NullConst, 0)
 
     if (equalities.exists({ case Equality(left, right) => subst(left) != subst(right) })) {
       return None

@@ -1,6 +1,11 @@
 package at.forsyte.harrsh.GSL
 
 object Utils {
+
+  implicit class SetUtils[A](val s: Set[A]) {
+    def disjoint(other: Set[A]): Boolean = s.intersect(other).isEmpty
+  }
+
   def compareLexicographically[A](a: Seq[A], b: Seq[A])(implicit evidence: A => Ordered[A]): Int = {
     val res = a.zip(b).collectFirst({
       case (v1, v2) if v1 < v2 => -1
@@ -21,6 +26,6 @@ object Utils {
     if (a.isEmpty)
       true
     else
-      a.zip(a.tail).forall(t => t._1 < t._2)
+      a.zip(a.tail).forall(t => t._1 <= t._2)
   }
 }

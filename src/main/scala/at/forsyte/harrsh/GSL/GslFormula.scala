@@ -1,6 +1,9 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
+import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
+
+import scala.collection.immutable.{AbstractSeq, LinearSeq}
+import scala.xml.NodeSeq
 
 /**
   * Created by Matthias Hetzenberger on 2021-02-07
@@ -35,7 +38,7 @@ object GslFormula {
     final case class Equality(left: Var, right: Var) extends Atom {
 
       override def substitute(substitution: Map[Var, Var]): Equality = Equality(substitution.getOrElse(left, left),
-        substitution.getOrElse(right, right))
+                                                                                substitution.getOrElse(right, right))
 
       override val vars: Set[Var] = Set(left, right)
       override val predicateCalls: Set[String] = Set.empty
@@ -43,7 +46,7 @@ object GslFormula {
 
     final case class DisEquality(left: Var, right: Var) extends Atom {
       override def substitute(substitution: Map[Var, Var]): DisEquality = DisEquality(substitution.getOrElse(left, left),
-        substitution.getOrElse(right, right))
+                                                                                      substitution.getOrElse(right, right))
 
 
       override val vars: Set[Var] = Set(left, right)
@@ -53,9 +56,11 @@ object GslFormula {
     final case class PointsTo(from: Var, to: Seq[Var]) extends Atom {
       override def substitute(substitution: Map[Var, Var]): PointsTo = PointsTo(substitution.getOrElse(from, from), to.map(v => substitution.getOrElse(v, v)))
 
-      def ptrmodel(ac: AliasingConstraint): Map[Var, Int] = ac.eqClass.map(kv => (kv._1, kv._2 + 1))
+      def ptrmodel(ac: AliasingConstraint): Map[Var, Int] = vars.diff(ac.domain).foldLeft((ac.eqClass.map(kv => (kv._1, kv._2 + 1)).updated(NullConst, 0), ac.domain.size + 2)) {
+        case ((map, ix), variable) => (map.updated(variable, ix), ix + 1)
+      }._1
 
-      override val vars: Set[Var] = (to :+ from).toSet
+      override val vars: Set[Var] = (to :+ from).toSet.excl(NullConst)
       override val predicateCalls: Set[String] = Set.empty
 
     }
@@ -92,7 +97,13 @@ object GslFormula {
 
     override val vars: Set[Var] = left.vars union right.vars
     override val predicateCalls: Set[String] = left.predicateCalls union right.predicateCalls
+  }
 
+  object SeparatingConjunction {
+    def from(left: GslFormula, right: Seq[GslFormula]): SeparatingConjunction = right match {
+      case head +: Seq() => SeparatingConjunction(left, head)
+      case head +: tail => SeparatingConjunction(left, SeparatingConjunction.from(head, tail))
+    }
   }
 
   final case class StandardConjunction(left: GslFormula, right: GslFormula) extends GslFormula {

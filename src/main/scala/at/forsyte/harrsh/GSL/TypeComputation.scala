@@ -2,13 +2,10 @@ package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{DisEquality, Equality, PointsTo, PredicateCall}
-import at.forsyte.harrsh.seplog.{FreeVar, Var}
+import at.forsyte.harrsh.seplog.FreeVar
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.annotation.tailrec
-import scala.collection.mutable
-
-class TypeComputation(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
+class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLogging {
 
 
   sealed trait Quantifier {
@@ -38,15 +35,22 @@ class TypeComputation(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     }))
   }
 
-  def types(gslFormula: GslFormula, ac: AliasingConstraint): Set[PhiType] = gslFormula match {
+  def types(ac: AliasingConstraint): Set[PhiType] = types(formula, ac)
+
+
+
+  private def types(gslFormula: GslFormula, ac: AliasingConstraint): Set[PhiType] = gslFormula match {
     case atom: Atom => atom match {
       case Atom.Emp() => Set(PhiType.empty)
-      case Equality(left, right) => if (ac =:= (left, right)) Set(PhiType.empty) else Set()
-      case DisEquality(left, right) => if (ac =:= (left, right)) Set() else Set(PhiType.empty)
+      case e: Equality => TypeComputation.equality(e, ac)
+      case d: DisEquality => TypeComputation.disEquality(d, ac)
       case p: PointsTo => Set(PhiType.ptrmodel(sid, ac, p))
       case c@PredicateCall(predName, args) =>
-        val s = new PredicateTypes(sid)
-        s.computeTypes(c, ac.restricted(args.toSet)).toSet
+        val s = new PredicateTypes(sid, formula.freeVars)
+        val pred = sid.predicates(predName)
+        PhiType.rename(pred.args.map(FreeVar), args.asInstanceOf[Seq[FreeVar]], ac, s.getType(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))).toSet
+
+      //s.computeTypes(c, ac.restricted(args.toSet)).toSet
 
       /*
       val pred = sid.predicates(predName)
@@ -89,6 +93,10 @@ class TypeComputation(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     case GslFormula.MagicWand(guard, left, right) => magicWandSeptractionHelper(Forall, ac, guard, left, right)
     case GslFormula.Septraction(guard, left, right) => magicWandSeptractionHelper(Exists, ac, guard, left, right)
   }
+}
 
+object TypeComputation {
+  def equality(eq: Equality, ac: AliasingConstraint): Set[PhiType] = if (ac =:= (eq.left, eq.right)) Set(PhiType.empty) else Set()
 
+  def disEquality(disEq: DisEquality, ac: AliasingConstraint): Set[PhiType] = if (ac =:= (disEq.left, disEq.right)) Set() else Set(PhiType.empty)
 }
