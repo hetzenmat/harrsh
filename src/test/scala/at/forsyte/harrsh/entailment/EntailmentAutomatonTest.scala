@@ -11,6 +11,18 @@ class EntailmentAutomatonTest extends HarrshTableTest with TestValues {
 
   import EntailmentAutomatonTest._
 
+  property("test") {
+    val sll = ExampleSids.Sll
+
+    val sinlgePtrLhs = SidFactory.richSidFromSymbolicHeap(SymbolicHeap(x1 -> x2))
+    val sllTable: TableFor4[RichSid, RichSid, PredCall, Boolean] = Table(
+      ("lhsSid", "rhsSid", "rhsCall", "shouldHold"),
+      // x1 -> x2 |= nel(x1,x2)
+      (sinlgePtrLhs, sll, P("sll")(x1,x2), EntailmentHolds))
+
+    runAllTestsInTable(sllTable)
+  }
+
   property("Soundness of entailment for singly-linked lists") {
 
     val nel = ExampleSids.Nel

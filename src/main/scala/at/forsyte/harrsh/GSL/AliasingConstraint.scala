@@ -5,10 +5,11 @@ import at.forsyte.harrsh.seplog.Var
 
 import scala.collection.SortedSet
 import scala.collection.mutable.ListBuffer
+import scala.runtime.ScalaRunTime
 
-case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: Map[Var, Int]) {
+class AliasingConstraint(val partition: Seq[SortedSet[Var]], val eqClass: Map[Var, Int]) {
 
-  def domain: Set[Var] = eqClass.keySet
+  val domain: Set[Var] = eqClass.keySet
 
   require(domain.size == partition.map(_.size).sum, "Partition is not valid")
 
@@ -33,8 +34,8 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
 
   def allExtensions(v: Var): Set[AliasingConstraint] = {
     Set.from(partition.zipWithIndex.map({
-      case (set, idx) => AliasingConstraint(partition.updated(idx, set.union(Set(v))), eqClass.updated(v, idx))
-    })).incl(AliasingConstraint(partition :+ SortedSet(v), eqClass.updated(v, partition.size)))
+      case (set, idx) => new AliasingConstraint(partition.updated(idx, set.union(Set(v))), eqClass.updated(v, idx))
+    })).incl(new AliasingConstraint(partition :+ SortedSet(v), eqClass.updated(v, partition.size)))
   }
 
   def rename(subst: Map[Var, Var]): AliasingConstraint = {
@@ -43,7 +44,7 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
     val newPartition = partition.map(ss => ss.map(v => subst.getOrElse(v, v)))
     val newEqClass = eqClass.map(kv => (subst.getOrElse(kv._1, kv._1), kv._2))
 
-    AliasingConstraint(newPartition, newEqClass)
+    new AliasingConstraint(newPartition, newEqClass)
   }
 
   def reverseRenaming(x: Seq[Var], y: Seq[Var]): AliasingConstraint = {
@@ -70,7 +71,7 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
 
     val newEqClass = (eqClass.toSeq ++ rel.map({ case (xx, yy) => (xx, eqClass(yy)) })).toMap
 
-    AliasingConstraint(newPartition, newEqClass)
+    new AliasingConstraint(newPartition, newEqClass)
   }
 
   def restricted(v: Set[Var]): AliasingConstraint = {
@@ -85,7 +86,41 @@ case class AliasingConstraint private(partition: Seq[SortedSet[Var]], eqClass: M
       (k, idx - emptySetsIndices.count(_ < idx))
     })
 
-    AliasingConstraint(partitionFiltered, eqClassReordered)
+    new AliasingConstraint(partitionFiltered, eqClassReordered)
+  }
+
+  override def hashCode(): Int = {
+
+    partition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var]).hashCode()
+  }
+
+
+  override def equals(obj: Any): Boolean =
+    obj match {
+      case ac: AliasingConstraint =>
+
+        partition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var]) == ac.partition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var])
+
+
+      //        if (domain != ac.domain) return false
+      //
+      //        for (varA <- domain;
+      //             varB <- domain) {
+      //          if ((this =:= (varA, varB)) != (ac =:= (varA, varB))) {
+      //            return false
+      //          }
+      //        }
+      //
+      //        true
+      case _ => false
+    }
+
+  override def toString: String = {
+
+    val part = partition.map(p => p.mkString("{", ", ", "}")).mkString(" ")
+    val eq = domain.toSeq.sorted.map(v => v + " -> " + eqClass(v)).mkString(" ")
+
+    part + " " + eq
   }
 }
 
@@ -109,7 +144,7 @@ object AliasingConstraint {
         }
       })
 
-      AliasingConstraint(buffer.map(s => SortedSet.from(s)).toSeq, map.toMap)
+      new AliasingConstraint(buffer.map(s => SortedSet.from(s)).toSeq, map.toMap)
     })
   }
 

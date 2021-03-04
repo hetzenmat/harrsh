@@ -82,7 +82,6 @@ final case class SymbolicHeapBtw(quantifiedVars: Seq[String] = Seq(),
 
 }
 
-
 object SymbolicHeap {
   def buildSymbolicHeap(quantifiedVars: Seq[String], atoms: Seq[Atom]): SymbolicHeap = {
 

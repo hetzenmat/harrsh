@@ -48,7 +48,8 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
       case c@PredicateCall(predName, args) =>
         val s = new PredicateTypes(sid, formula.freeVars)
         val pred = sid.predicates(predName)
-        PhiType.rename(pred.args.map(FreeVar), args.asInstanceOf[Seq[FreeVar]], ac, s.getType(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))).toSet
+        val types = s.getType(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))
+        PhiType.rename(pred.args.map(FreeVar), args.asInstanceOf[Seq[FreeVar]], ac, types, sid).toSet
 
       //s.computeTypes(c, ac.restricted(args.toSet)).toSet
 
@@ -86,8 +87,13 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
       val negatedTypes = types(negated, ac)
 
       println(gslFormula)
-      println("Guard " + guardTypes)
-      println("Negated " + negatedTypes)
+      println("Guard:   " + guardTypes.toSeq.sorted)
+      println("Negated: " + negatedTypes.toSeq.sorted)
+
+      val allLeft = guardTypes.flatMap(_.projections.unsorted)
+      val allRight = negatedTypes.flatMap(_.projections.unsorted)
+
+      println("Left all: " + (allLeft.diff(allRight).toSeq.sorted))
 
       guardTypes diff negatedTypes
     case GslFormula.MagicWand(guard, left, right) => magicWandSeptractionHelper(Forall, ac, guard, left, right)

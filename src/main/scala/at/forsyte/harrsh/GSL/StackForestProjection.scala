@@ -80,6 +80,19 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar], val gu
     val cond2 = formula.forall(tp => !tp.allholepreds.contains(tp.rootpred))
     if (!cond2) return false
 
+    def prop(sf: StackForestProjection): Boolean = {
+      val vars = sf.formula.unsorted.map(_.rootpred).map({ case PredicateCall(pred, args) =>
+        val p = sid.predicates(pred)
+        args(p.predrootIndex)
+      }).toSet
+
+      vars.size < sf.formula.size
+    }
+
+    if (prop(this)) {
+      return false
+    }
+
     val allPredCallsLeft = formula.flatMap(_.allholepreds)
     val allVars = freeVars.asInstanceOf[Set[Var]].union(boundVars.asInstanceOf[Set[Var]])
 

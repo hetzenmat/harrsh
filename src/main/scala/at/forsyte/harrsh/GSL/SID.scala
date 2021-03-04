@@ -145,6 +145,7 @@ object SID {
 
     def predroot: FreeVar =
       FreeVar(args(predrootIndex))
+
   }
 
   case class Rule(name: String, args: Seq[String], body: SymbolicHeap) {
