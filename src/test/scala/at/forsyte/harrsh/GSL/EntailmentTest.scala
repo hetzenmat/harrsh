@@ -81,13 +81,13 @@ class EntailmentTest extends AnyFlatSpec {
       println(t)
     }
 
-//    println("==============")
-//
-//    val r = new TypeComputation(lseg, parseFormula("lseg(a, b) * lseg(b, c)")).types(
-//      AliasingConstraint(Seq(SortedSet.from(Seq(a)), SortedSet.from(Seq(b)), SortedSet.from(Seq(c))), Map((a, 0), (b, 1), (c, 2))))
-//    r.foreach { t =>
-//      println(t)
-//    }
+    //    println("==============")
+    //
+    //    val r = new TypeComputation(lseg, parseFormula("lseg(a, b) * lseg(b, c)")).types(
+    //      AliasingConstraint(Seq(SortedSet.from(Seq(a)), SortedSet.from(Seq(b)), SortedSet.from(Seq(c))), Map((a, 0), (b, 1), (c, 2))))
+    //    r.foreach { t =>
+    //      println(t)
+    //    }
   }
 
   "Type computation" should "correctly decide entailments" in {
