@@ -9,7 +9,7 @@ import scala.collection.SortedSet
   * Created by Matthias Hetzenberger on 2021-02-13
   */
 case class PhiType(projections: SortedSet[StackForestProjection]) {
-  def alloced(sid: SID_btw): Set[FreeVar] = projections.
+  def alloced(sid: SID_btw): Set[FreeVar] = projections.unsorted.
                                             flatMap(_.formula)
                                             .map(_.rootpred)
                                             .map(c => c.args(sid.predicates(c.pred).predrootIndex)).asInstanceOf[Set[FreeVar]]
