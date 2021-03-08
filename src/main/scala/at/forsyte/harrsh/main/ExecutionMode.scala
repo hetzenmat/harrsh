@@ -34,7 +34,7 @@ sealed trait ExecutionMode {
     case GetModel => Duration(120, SECONDS)
     case ModelChecking => Duration(120, SECONDS)
     case ParseOnly => Duration(10, SECONDS)
-    case GSL => Duration(120, SECONDS)
+    case GSL => Duration.Inf
     case _ => Duration(0, SECONDS)
   }
 }

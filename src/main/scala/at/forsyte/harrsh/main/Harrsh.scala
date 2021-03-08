@@ -1,17 +1,19 @@
 package at.forsyte.harrsh.main
 
-import GlobalConfig.params
+import at.forsyte.harrsh.GSL.GslFormula.Negation
 import at.forsyte.harrsh.Implicits
 import at.forsyte.harrsh.converters._
 import at.forsyte.harrsh.entailment.{EntailmentChecker, EntailmentConfig}
+import at.forsyte.harrsh.main.ExecutionMode._
+import at.forsyte.harrsh.main.GlobalConfig.params
+import at.forsyte.harrsh.main.ProblemStatus.{Correct, Incorrect, Unknown}
 import at.forsyte.harrsh.modelchecking.GreedyUnfoldingModelChecker
-import at.forsyte.harrsh.parsers.QueryParser
+import at.forsyte.harrsh.parsers.{GslParser, QueryParser}
 import at.forsyte.harrsh.refinement.{DecisionProcedures, RefinementAlgorithms}
 import at.forsyte.harrsh.seplog.inductive.SidUnfolding
 import at.forsyte.harrsh.util.{Combinators, IOUtils}
-import at.forsyte.harrsh.main.ExecutionMode._
-import at.forsyte.harrsh.main.ProblemStatus.{Correct, Incorrect, Unknown}
 
+import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -22,7 +24,7 @@ object Harrsh extends Implicits {
 
   val PreviousSidFileName = "result.sid"
 
-  def main(args : Array[String]) : Unit = {
+  def main(args: Array[String]): Unit = {
 
     val (mode, file) = ArgParser(args)
 
@@ -33,7 +35,7 @@ object Harrsh extends Implicits {
     else if (mode.requiresProp && !GlobalConfig.isDefinedAt(params.Property)) {
       println("No (valid) property specified => Terminating")
     } else {
-      Combinators.swallowExceptions[(ExecutionMode,String)](
+      Combinators.swallowExceptions[(ExecutionMode, String)](
         pair => run(pair._1, pair._2),
         GlobalConfig.getBoolean(params.Debug))(mode, file)
     }
@@ -42,7 +44,7 @@ object Harrsh extends Implicits {
   /**
     * Run Harrsh in the given mode
     */
-  private def run(mode: ExecutionMode, file: String) : Unit = mode match {
+  private def run(mode: ExecutionMode, file: String): Unit = mode match {
     case Help =>
       println(ArgParser.usageMsg())
 
@@ -69,9 +71,9 @@ object Harrsh extends Implicits {
       GlobalConfig.getProp foreach { prop =>
         val task = RefinementQuery(file, prop)
         val result = DecisionProcedures.decideInstance(task,
-          GlobalConfig.getTimeoutForCurrentMode,
-          GlobalConfig.getBoolean(params.Verbose),
-          GlobalConfig.getBoolean(params.ReportProgress))
+                                                       GlobalConfig.getTimeoutForCurrentMode,
+                                                       GlobalConfig.getBoolean(params.Verbose),
+                                                       GlobalConfig.getBoolean(params.ReportProgress))
         MainIO.printAnalysisResult(task, result)
       }
 
@@ -81,9 +83,9 @@ object Harrsh extends Implicits {
         println(s"Will refine SID definition in file $file by $prop")
         val query = RefinementQuery(file, prop)
         val result = RefinementAlgorithms.refineSID(query.sid,
-          query.automaton,
-          GlobalConfig.getTimeoutForCurrentMode,
-          reportProgress = GlobalConfig.getBoolean(params.ReportProgress))
+                                                    query.automaton,
+                                                    GlobalConfig.getTimeoutForCurrentMode,
+                                                    reportProgress = GlobalConfig.getBoolean(params.ReportProgress))
 
         result match {
           case Some(vsid) =>
@@ -103,9 +105,9 @@ object Harrsh extends Implicits {
       println("Will run all refinement benchmarks in " + file)
       val tasks = MainIO.readTasksFromFile(file)
       val (results, stats) = DecisionProcedures.decideInstances(tasks,
-        GlobalConfig.getTimeoutForCurrentMode,
-        GlobalConfig.getBoolean(params.Verbose),
-        GlobalConfig.getBoolean(params.ReportProgress))
+                                                                GlobalConfig.getTimeoutForCurrentMode,
+                                                                GlobalConfig.getBoolean(params.Verbose),
+                                                                GlobalConfig.getBoolean(params.ReportProgress))
 
       MainIO.writeBenchmarkFile(results, "previous-batch.bms")
       MainIO.printAnalysisResults(results, stats)
@@ -129,7 +131,7 @@ object Harrsh extends Implicits {
     case TacasArtifact =>
       println(s"TACAS artifact: Will run experiments specified in '$file'")
       println("TODO: Fix Benchmarks")
-      //EntailmentBenchmarking.runJmhBenchmarskForHarrsh(file)
+    //EntailmentBenchmarking.runJmhBenchmarskForHarrsh(file)
 
     case ConvertEntailmentBatch =>
       val wrapper = (format: String, conv: EntailmentFormatConverter) => {
@@ -150,9 +152,9 @@ object Harrsh extends Implicits {
     case Unfold =>
       val sid = QueryParser.getSidFromFile(file)
       println(SidUnfolding.unfold(sid,
-        GlobalConfig.getInt(params.UnfoldingDepth),
-        GlobalConfig.getBoolean(params.UnfoldingsReduced)
-      ).mkString("\n"))
+                                  GlobalConfig.getInt(params.UnfoldingDepth),
+                                  GlobalConfig.getBoolean(params.UnfoldingsReduced)
+                                  ).mkString("\n"))
 
     case Analyze =>
       val sid = QueryParser.getSidFromFile(file)
@@ -163,10 +165,12 @@ object Harrsh extends Implicits {
         println("Will compute model of SID in file " + file + " that satisfies property " + prop)
         val query = RefinementQuery(file, prop)
         val result = RefinementAlgorithms.refineSID(query.sid,
-          query.automaton,
-          GlobalConfig.getTimeoutForCurrentMode,
-          Try { GlobalConfig.getInt(params.SatCheckingIncrementalFromNumCalls) }.toOption,
-          GlobalConfig.getBoolean(params.ReportProgress))
+                                                    query.automaton,
+                                                    GlobalConfig.getTimeoutForCurrentMode,
+                                                    Try {
+                                                      GlobalConfig.getInt(params.SatCheckingIncrementalFromNumCalls)
+                                                    }.toOption,
+                                                    GlobalConfig.getBoolean(params.ReportProgress))
 
         result match {
           case Some(vsid) =>
@@ -180,7 +184,9 @@ object Harrsh extends Implicits {
       }
 
     case ModelChecking =>
-      Try { GlobalConfig.getString(params.ModelFile) } foreach { modelFile =>
+      Try {
+        GlobalConfig.getString(params.ModelFile)
+      } foreach { modelFile =>
         val sid = QueryParser.getSidFromFile(file)
         val model = MainIO.getModelFromFile(modelFile)
         val modelChecker = GreedyUnfoldingModelChecker
@@ -189,7 +195,33 @@ object Harrsh extends Implicits {
       }
 
     case GSL =>
-      println("GSL satisfiability decision procedure")
+      println("Starting GSL satisfiability decision procedure")
+      val source = Source.fromFile(file)
+      val input = try source.mkString finally source.close()
+
+      new GslParser(input).parseQuery.run() match {
+        case Failure(exception) => throw exception
+        case Success(query) => if (query.fromEntailment) {
+          query.entailmentHolds match {
+            case Left(value) => println("Failure: " + value)
+            case Right(status) =>
+              val neg = query.formula.asInstanceOf[Negation]
+              val left = neg.guard
+              val right = neg.negated
+              val entailment = left + " |= " + right
+
+              if (status)
+                println("The entailment " + entailment + " holds.")
+              else
+                println("The entailment " + entailment + " does not hold.")
+          }
+        } else {
+          query.isSatisfiable match {
+            case Left(value) => println("Failure: " + value)
+            case Right(status) => println("The formula " + query.formula + "is " + (if (status) "" else "un") + "satisfiable.")
+          }
+        }
+      }
   }
 
 }
