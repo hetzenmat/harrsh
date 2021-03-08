@@ -2,13 +2,15 @@ package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{DisEquality, Equality, PointsTo, PredicateCall}
+import at.forsyte.harrsh.GSL.SID.Predicate
 import at.forsyte.harrsh.seplog.{FreeVar, Var}
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.annotation.tailrec
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
-// Test: remove x variables
 class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
   //private val state: mutable.Map[(SID.Predicate[SymbolicHeapBtw], AliasingConstraint), mutable.Set[PhiType]] = collection.mutable.Map.empty //.withDefaultValue(mutable.Set.empty)
   private var state: Map[String, Map[AliasingConstraint, Set[PhiType]]] = Map.empty
@@ -70,37 +72,25 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     } else ptypes(sh.atoms, ac)
 
   def getType(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
-
-//    if (!finished.contains(ac)) {
-//      unfold(ac)
-//    }
-
     if (!allFinished) unfold()
 
-
-//    val allAcs = state.zipWithIndex.map(t => (t._1._1._2, t._2))
-//    val keys = state.keySet
-//    val allPreds = state.zipWithIndex.map(t => (t._1._1._1, t._2))
-
-//    if (!state.contains((pred, ac))) {
-//      println(state.toSeq.find(p => p._1 == (pred, ac)))
-//      state.get((pred, ac))
-//      println("sdf")
-//    }
-
-    if (!state(pred.name).contains(ac)) {
-      println("sdf")
-    }
-
     state(pred.name)(ac)
-
-    // TODO Bug?
-   // state.toSeq.find(p => p._1.equals((pred, ac))).get._2.toSet
   }
 
-  private def unfold(/*ac: AliasingConstraint*/): Unit = {
+  private def ptypesIterationSequential(ac: AliasingConstraint, pred: Predicate[SymbolicHeapBtw]): Set[PhiType] = {
+    val newTypes = mutable.Set.empty[PhiType]
+    for (rule <- pred.rules) {
+      val discovered = ptypes(rule, ac)
 
-    val xSubs = x.subsets(2) // .filter(_.nonEmpty).toSeq
+      newTypes.addAll(discovered)
+    }
+
+    newTypes.toSet
+  }
+
+  private def unfold(): Unit = {
+
+    val xSubs = x.subsets().filter(_.nonEmpty).toSeq
     val allAcs = sid.predicates.values.flatMap(pred => xSubs.flatMap(xx => AliasingConstraint.allAliasingConstraints(pred.freeVars.union(xx)))).toSeq
 
     var changed = true
@@ -117,15 +107,13 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
         println(nac + " / " + allAcs.size)
         nac += 1
         for (pred <- sid.predicates.values) {
-          var newTypes = Set.empty[PhiType]
 
-          for (rule <- pred.rules) {
-            val discovered = ptypes(rule, ac)
 
-            //println("discovered: " + discovered)
-            newTypes = newTypes.union(Set.from(discovered))
-            //newTypes.addAll(discovered)
-          }
+          val futures: Seq[Future[Set[PhiType]]] = pred.rules.map(rule => Future {
+            immutable.Set.from(ptypes(rule, ac))
+          })
+
+          val newTypes = Await.result(Future.sequence(futures), Duration.Inf).flatten.toSet
 
           if (!state.contains(pred.name)) state = state.updated(pred.name, Map.empty)
 
@@ -133,20 +121,17 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
             val prevSize = state(pred.name)(ac).size
             state = state.updated(pred.name, state(pred.name).updated(ac, state(pred.name)(ac).union(newTypes)))
 
-            if (state(pred.name)(ac).size != prevSize) changed = true
+            val newSize = state(pred.name)(ac).size
+
+            if (newSize != prevSize) changed = true
           } else {
             state = state.updated(pred.name, state(pred.name).updated(ac, newTypes))
             changed = true
           }
         }
       }
-
-
-      //finished = finished.incl(ac)
     }
 
     allFinished = true
   }
-
-
 }

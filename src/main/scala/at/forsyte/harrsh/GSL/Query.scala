@@ -1,5 +1,6 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL.GslFormula.Negation
 import at.forsyte.harrsh.seplog.Var
 
 /**
@@ -7,7 +8,7 @@ import at.forsyte.harrsh.seplog.Var
   *
   * Represent a satisfiability query which consists of a GSL formula and a corresponding SID
   */
-case class Query(formula: GslFormula, sid: SID, fromEntailment: Boolean) {
+case class Query(formula: GslFormula, sid: SID, fromEntailment: Boolean = false) {
   def isSatisfiable: Either[String, Boolean] =
     sid.toBtw match {
       case Left(l) => Left(l)
@@ -41,4 +42,18 @@ case class Query(formula: GslFormula, sid: SID, fromEntailment: Boolean) {
           types.nonEmpty
         }))
     }
+
+  def entailmentHolds: Either[String, Boolean] = {
+    formula match {
+      case _: Negation => isSatisfiable match {
+        case l@Left(_) => l
+        case Right(result) => Right(!result)
+      }
+      case _ => Left("This method can only be called on negations")
+    }
+  }
+}
+
+object Query {
+  def fromEntailment(left: GslFormula, right: GslFormula, sid: SID): Query = Query(Negation(left, right), sid, fromEntailment = true)
 }
