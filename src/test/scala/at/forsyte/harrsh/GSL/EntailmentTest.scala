@@ -29,7 +29,6 @@ class EntailmentTest extends AnyFlatSpec {
       """
         |ls(x1) <= x1 -> nil
         |ls(x1) <= ∃y.x1 -> (y) * ls(y)
-        |ptr1(x1,x2) <= x1 -> x2
         |""".stripMargin)
 
     val ptr1: SID = get(

@@ -47,19 +47,19 @@ class SID private(val predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
               (name, Predicate(predName, args, rules.map(_.toBtw)))
           })
 
-          // TODO
-          //val pointsToSizes: Set[Int] = predicatesTransformed.values.flatMap(_.rules).map(_.pointsTo.to.size).toSet
 
-//          val predicatesWithPtrs = pointsToSizes.foldLeft(predicatesTransformed) { (map, number) =>
-//            val name = "ptr" + number
-//            val args = (1 to number + 1).map("x" + _)
-//            val argsV = args.map(FreeVar)
-//            map.updated(name, Predicate(name = name,
-//              args = args,
-//              rules = Seq(SymbolicHeapBtw(pointsTo = Atom.PointsTo(argsV.head, argsV.tail)))))
-//          }
+          val pointsToSizes: Set[Int] = predicatesTransformed.values.flatMap(_.rules).map(_.pointsTo.to.size).toSet
 
-          Right(SID_btw(predicatesTransformed, Set()))
+          val predicatesWithPtrs = pointsToSizes.foldLeft(predicatesTransformed) { (map, number) =>
+            val name = "ptr" + number
+            val args = (1 to number + 1).map("x" + _)
+            val argsV = args.map(FreeVar)
+            map.updated(name, Predicate(name = name,
+                                        args = args,
+                                        rules = Seq(SymbolicHeapBtw(pointsTo = Atom.PointsTo(argsV.head, argsV.tail)))))
+          }
+
+          Right(SID_btw(predicatesWithPtrs, pointsToSizes))
         }
         else
           Left("SID does not satisfy establishment")
@@ -76,28 +76,28 @@ class SID private(val predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
         pred.rules.map(body => {
           val spatial: Seq[SepLogAtom] = body.spatial.map(p => PointsTo(p.from, p.to))
           val pure: Seq[SepLogAtom] = body.equalities.map(p =>
-            if (p.vars.size == 1)
-              p.vars.head =:= p.vars.head
-            else
-              p.vars.head =:= p.vars.tail.head
-          ) ++
+                                                            if (p.vars.size == 1)
+                                                              p.vars.head =:= p.vars.head
+                                                            else
+                                                              p.vars.head =:= p.vars.tail.head
+                                                          ) ++
             body.disEqualities.map(p =>
-              if (p.vars.size == 1)
-                p.vars.head =/= p.vars.head
-              else
-                p.vars.head =/= p.vars.tail.head
-            )
+                                     if (p.vars.size == 1)
+                                       p.vars.head =/= p.vars.head
+                                     else
+                                       p.vars.head =/= p.vars.tail.head
+                                   )
           val calls: Seq[SepLogAtom] = body.calls.map(p => PredCall(p.pred, p.args))
           (predName, body.quantifiedVars, SH(spatial ++ pure ++ calls: _*))
         })
     }).toSeq
 
     SidFactory.makeRootedSid(startPred,
-      "",
-      predicates.map({
-        case (predName, pred) => (predName, FreeVar(pred.args(pred.predrootIndex)))
-      }),
-      ruleTuples: _*)
+                             "",
+                             predicates.map({
+                               case (predName, pred) => (predName, FreeVar(pred.args(pred.predrootIndex)))
+                             }),
+                             ruleTuples: _*)
   }
 }
 
@@ -137,7 +137,7 @@ object SID {
           case sh: SymbolicHeap => sh.spatial.size == 1 && sh.spatial.head.from == FreeVar(args(i))
           case sh: SymbolicHeapBtw => sh.pointsTo.from == FreeVar(args(i))
         }
-      ) match {
+        ) match {
         case None => -1
         case Some(i) => i
       }
@@ -153,7 +153,7 @@ object SID {
 
     require(body.freeVars.map(_.toString) == args.toSet, "Free variables need to be arguments")
 
-    require(!"^ptr[1-9][0-9]+$".r.matches(name), "Reserved name ptr_k was used")
+    require(!"^ptr[1-9][0-9]+$".r.matches(name), "Reserved name ptr was used")
   }
 
   def buildSID(rules: Seq[Rule]): SID =
@@ -162,8 +162,7 @@ object SID {
         map.updatedWith(rule.name) {
           case None => Some(Predicate(rule.name, rule.args, Seq(rule.body)))
           case Some(pred) =>
-            //TODO
-            //require(rule.args == pred.args, "Arguments have to be the same for all rules of a predicate")
+            require(rule.args == pred.args, "Arguments have to be the same for all rules of a predicate")
 
             Some(Predicate(rule.name, rule.args, pred.rules.appended(rule.body)))
         }

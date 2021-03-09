@@ -48,7 +48,8 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
       case c@PredicateCall(predName, args) =>
         val s = new PredicateTypes(sid, formula.freeVars)
         val pred = sid.predicates(predName)
-        val types = s.getType(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))
+//        val types = s.getType(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))
+        val types = s.getTypeLazy(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))
         PhiType.rename(pred.args.map(FreeVar), args.asInstanceOf[Seq[FreeVar]], ac, types, sid).toSet
 
       //s.computeTypes(c, ac.restricted(args.toSet)).toSet

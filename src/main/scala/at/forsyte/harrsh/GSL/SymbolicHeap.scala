@@ -9,6 +9,7 @@ sealed abstract class AbstractSymbolicHeap() {
   final lazy val allVars: Set[Var] = atoms.flatMap(_.vars).toSet.excl(NullConst)
   final lazy val freeVars: Set[Var] = allVars.collect { case a: FreeVar => a }
 
+  val isRecursive: Boolean
 }
 
 /**
@@ -29,6 +30,7 @@ final case class SymbolicHeap(quantifiedVars: Seq[String],
 
   def toBtw: SymbolicHeapBtw = SymbolicHeapBtw(quantifiedVars, spatial.head, calls, equalities, disEqualities)
 
+  override val isRecursive: Boolean = calls.nonEmpty
 }
 
 sealed trait AbstractSymbolicHeapBtw extends AbstractSymbolicHeap
@@ -39,6 +41,8 @@ final case class SymbolicHeapBtw(quantifiedVars: Seq[String] = Seq(),
                                  equalities: Seq[Equality] = Seq(),
                                  disEqualities: Seq[DisEquality] = Seq()) extends AbstractSymbolicHeapBtw {
   override val atoms: Seq[Atom] = pointsTo +: (calls ++ equalities ++ disEqualities)
+
+  override val isRecursive: Boolean = calls.nonEmpty
 
   def substitute(subst: Map[Var, Var]): SymbolicHeapBtw = {
     SymbolicHeapBtw(quantifiedVars = quantifiedVars,
