@@ -39,7 +39,6 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
   def types(ac: AliasingConstraint): Set[PhiType] = types(formula, ac)
 
 
-
   private def types(gslFormula: GslFormula, ac: AliasingConstraint): Set[PhiType] = gslFormula match {
     case atom: Atom => atom match {
       case Atom.Emp() => Set(PhiType.empty)
@@ -85,7 +84,17 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
       composition
 
 
-    case GslFormula.StandardConjunction(left, right) => types(left, ac) intersect types(right, ac)
+    case GslFormula.StandardConjunction(left, right) =>
+      val typesLeft = types(left, ac)
+      val typesRight = types(right, ac)
+
+      val result = typesLeft intersect typesRight
+      println("Left: " + typesLeft)
+      println("Right: " + typesRight)
+      println("Result: " + result)
+
+      result
+
     case GslFormula.Disjunction(left, right) => types(left, ac) union types(right, ac)
     case GslFormula.Negation(guard, negated) =>
       val guardTypes = types(guard, ac)
@@ -115,7 +124,7 @@ object TypeComputation {
     if (ac =:= (pointsTo.from, NullConst)) {
       Set.empty
     } else {
-      val r = Set(PhiType.ptrmodel(sid, ac, pointsTo))
+      val r = Set(PhiType.ptrmodel(sid, ac, pointsTo).substitute(ac.domain.map(v => (v, ac.largestAlias(v))).toMap))
       r
     }
 }

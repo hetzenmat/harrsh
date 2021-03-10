@@ -97,7 +97,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     if (table(it).contains((pred.name, ac))) {
       val ret = table(it)((pred.name, ac))
 
-      //println(ret + " " + ac)
+      println(ret)
 
       if (Utils.nonCanonical(ret, ac)) {
         println("here")
@@ -129,8 +129,10 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
       val ret = table(it)((pred.name, ac))
 
+      println(ret)
+
       if (Utils.nonCanonical(ret, ac)) {
-        println("here")
+        ???
       }
       ret
     }
@@ -138,7 +140,15 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
   def getTypeLazy(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
     var current = 0
-    while (unfoldLazy(current, pred, ac).size < unfoldLazy(current + 1, pred, ac).size) current += 1
+    var a = unfoldLazy(current, pred, ac)
+    var b = unfoldLazy(current + 1, pred, ac)
+    while (a.size < b.size) {
+      require(a.subsetOf(b))
+      current += 1
+      a = b
+      b = unfoldLazy(current + 1, pred, ac)
+    }
+    require(a.subsetOf(b))
 
     unfoldLazy(current, pred, ac)
   }

@@ -248,15 +248,16 @@ object StackForestProjection {
   def freeVariables(formula: Iterable[TreeProjection]): Set[FreeVar] = formulaFlatMap(formula, _.freeVars).toSet.asInstanceOf[Set[FreeVar]]
 
   def composition(left: StackForestProjection, right: StackForestProjection): Set[StackForestProjection] = {
-    val r = allRescopings(left, right).map(sfp => sfp.deriveGreedy /*.incl(sfp) TODO*/)
-    //val r = allRescopings(left, right).flatMap(sfp => sfp.derivableSet /*.incl(sfp) TODO*/)
+//    val r = allRescopings(left, right).map(sfp => sfp.deriveGreedy /*.incl(sfp) TODO*/)
+    val r = allRescopings(left, right).flatMap(sfp => sfp.derivableSet /*.incl(sfp) TODO*/)
 
     r
   }
 
   def allRescopings(left: StackForestProjection, right: StackForestProjection): Set[StackForestProjection] = {
-    (for (i <- 0 to left.quantifiedLength;
-          j <- 0 to right.quantifiedLength) yield {
+
+    val res = (for (i <- 0 to left.quantifiedLength;
+                    j <- 0 to right.quantifiedLength) yield {
       val d1 = (1 to i).map(i => BoundVar(i))
       val d2 = (1 to j).map(i => BoundVar(i + d1.length))
       val a = (1 to Math.max(left.quantifiedLength - d1.length, right.quantifiedLength - d2.length)).map(i => BoundVar(i + d1.length + d2.length))
@@ -275,6 +276,15 @@ object StackForestProjection {
         Some(StackForestProjection.from(SortedSet.from(d1 ++ d2), SortedSet.from(a.toSet.intersect(StackForestProjection.boundVariables(formula))), formula))
       } else None
     }).flatten.toSet
+
+//    if (left.quantifiedLength > 0 && right.quantifiedLength > 0) {
+//      println("test")
+//      if (res.size > 3) {
+//        println("s")
+//      }
+//    }
+
+    res
   }
 }
 

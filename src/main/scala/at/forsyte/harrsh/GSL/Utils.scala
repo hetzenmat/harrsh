@@ -1,5 +1,7 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.seplog.{NullConst, Var}
+
 object Utils {
 
   implicit class SetUtils[A](val s: Set[A]) {
@@ -13,7 +15,7 @@ object Utils {
     nonCanonicalSF(t.projections, ac)
 
   def nonCanonicalSF(s: Iterable[StackForestProjection], ac: AliasingConstraint): Boolean =
-    s.exists(sf => sf.freeVars.exists(v => ac.largestAlias(v) != v))
+    s.exists(sf => sf.freeVars.asInstanceOf[Set[Var]].exists(v => ac.largestAlias(v) != v))
 
   def compareLexicographically[A](a: Seq[A], b: Seq[A])(implicit evidence: A => Ordered[A]): Int = {
     val res = a.zip(b).collectFirst({

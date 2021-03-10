@@ -1,7 +1,7 @@
 package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{PointsTo, PredicateCall}
-import at.forsyte.harrsh.seplog.{FreeVar, Var}
+import at.forsyte.harrsh.seplog.{FreeVar, NullConst, Var}
 
 import scala.collection.SortedSet
 
@@ -84,7 +84,8 @@ object PhiType {
 
     //val it2 = it.filter(sf => sf.formula.forall(tp => !tp.allholepreds.contains(tp.rootpred)))
 
-    if (it.exists(!_.isDelimited(sid))) {
+    if (it.isEmpty || it.exists(!_.isDelimited(sid))) {
+      // TODO: Really return None if empty?
       None
     } else {
       Some(PhiType(SortedSet.from(it)))
@@ -149,9 +150,13 @@ object PhiType {
 
   def ptrmodel(sid: SID_btw, ac: AliasingConstraint, pointsTo: PointsTo): PhiType = {
 
+    if (pointsTo.from == FreeVar("a") && pointsTo.to == Seq(NullConst)) {
+      println()
+    }
+
     val pm = pointsTo.ptrmodel(ac)
 
-    val k = sid.predicates.values.map(_.args.length).max - 1
+    val k = sid.predicates.values.map(_.args.length).max
     // TODO null
     val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size + k)
 

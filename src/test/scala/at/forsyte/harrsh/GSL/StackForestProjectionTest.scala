@@ -64,6 +64,26 @@ class StackForestProjectionTest extends AnyFlatSpec {
     assert(StackForestProjection.composition(left, right).exists(_.formula == Seq(TreeProjection(Seq(), P("cyclic")(x, y, z)))))
   }
 
+  it should "correctly compute composition of Example 10.30 in 'Dissertation Pagel'" in {
+    val (x1, x2, x3): (FreeVar, FreeVar, FreeVar) = (FreeVar("x1"), FreeVar("x2"), FreeVar("x3"))
+
+    val p1 = P("p1")(x1, x2, x3)
+    val p2 = P("p2")(x3, x2, _1)
+    val ptr = P("ptr")(x2, _1)
+
+    val sf1 = StackForestProjection.from(SortedSet(_1), SortedSet(),
+                                         Seq(TreeProjection(Seq(p2), p1),
+                                             TreeProjection(Seq(), ptr)))
+    val sf2 = StackForestProjection.from(SortedSet(), SortedSet(_1),
+                                         Seq(TreeProjection(Seq(ptr), p2)))
+
+    val result = StackForestProjection.from(SortedSet(),
+                                            SortedSet(),
+                                            Seq(TreeProjection(Seq(), p1)))
+
+    assert(StackForestProjection.composition(sf1, sf2).contains(result))
+  }
+
   it should "correctly compute all rescopings and composition for Example 7.34 (second part)" in {
     val tll_abc = P("tll")(a, b, c)
     val tll_xyz = P("tll")(x, y, z)

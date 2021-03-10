@@ -31,6 +31,14 @@ class EntailmentTest extends AnyFlatSpec {
         |ls(x1) <= ∃y.x1 -> (y) * ls(y)
         |""".stripMargin)
 
+    val lseg_ls: SID = get(
+      """
+        |lseg(x1,x2) <= x1 -> <x2>
+        |lseg(x1,x2) <= ∃y.x1 -> (y) * lseg(y, x2)
+        |ls(x1) <= x1 -> nil
+        |ls(x1) <= ∃y.x1 -> (y) * ls(y)
+        |""".stripMargin)
+
     val ptr1: SID = get(
       """
         |ptr1(x1,x2) <= x1 -> x2
@@ -51,7 +59,7 @@ class EntailmentTest extends AnyFlatSpec {
     case Right(value) => value
   }
 
-  "Type computation" should "correctly decide entailments (lseg)" in {
+  "Type computation" should "correctly decide entailments (lseg) (Does not yet work)" in {
     val left = parseFormula("lseg(a, b) * lseg(b, c)")
     val right = parseFormula("lseg(a, c)")
 
@@ -103,12 +111,48 @@ class EntailmentTest extends AnyFlatSpec {
   }
 
   "Type computation" should "correctly decide entailments (lseg and ls)" in {
-    val left = parseFormula("lseg(a, b) * b -> null")
-    val right = parseFormula("ls(a)")
+    val inputs: Seq[(GslFormula, GslFormula, SID, Boolean)] = Seq({
+      val left = parseFormula("lseg(a, b) * b -> null")
+      val right = parseFormula("ls(a)")
 
-    Query.fromEntailment(left, right, SIDs.lseg).entailmentHolds match {
-      case Left(value) => fail(value)
-      case Right(value) => assert(value)
+      (left, right, SIDs.lseg_ls, true)
+    }, {
+      val left = parseFormula("lseg(a, b) * lseg(b, null)")
+      val right = parseFormula("ls(a)")
+
+      (left, right, SIDs.lseg_ls, true)
+    }, {
+      val left = parseFormula("ls(a)")
+      val right = parseFormula("lseg(a, null)")
+
+      (left, right, SIDs.lseg_ls, true)
+    }, {
+      val left = parseFormula("lseg(a, b)")
+      val right = parseFormula("ls(a)")
+
+      (left, right, SIDs.lseg_ls, false)
+    }, {
+      val left = parseFormula("ls(a)")
+      val right = parseFormula("lseg(a, b)")
+
+      (left, right, SIDs.lseg_ls, false)
+    }, {
+      val left = parseFormula("a -> b * b -> a")
+      val right = parseFormula("lseg(a, b) * lseg(b, a)")
+
+      (left, right, SIDs.lseg, true)
+    }, {
+      val left = parseFormula("lseg(a, b) * lseg(b, a)")
+      val right = parseFormula("a -> b * b -> a")
+
+      (left, right, SIDs.lseg, false)
+    })
+
+    for ((left, right, sid, expectation) <- inputs) {
+      Query.fromEntailment(left, right, sid).entailmentHolds match {
+        case Left(value) => fail(value)
+        case Right(value) => assert(value == expectation)
+      }
     }
   }
 }
