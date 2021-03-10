@@ -6,6 +6,15 @@ object Utils {
     def disjoint(other: Set[A]): Boolean = s.intersect(other).isEmpty
   }
 
+  def nonCanonical(t: Iterable[PhiType], ac: AliasingConstraint): Boolean =
+    t.exists(t => nonCanonicalSF(t.projections, ac))
+
+  def nonCanonical(t: PhiType, ac: AliasingConstraint): Boolean =
+    nonCanonicalSF(t.projections, ac)
+
+  def nonCanonicalSF(s: Iterable[StackForestProjection], ac: AliasingConstraint): Boolean =
+    s.exists(sf => sf.freeVars.exists(v => ac.largestAlias(v) != v))
+
   def compareLexicographically[A](a: Seq[A], b: Seq[A])(implicit evidence: A => Ordered[A]): Int = {
     val res = a.zip(b).collectFirst({
       case (v1, v2) if v1 < v2 => -1

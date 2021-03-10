@@ -1,7 +1,7 @@
 package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Negation
-import at.forsyte.harrsh.seplog.Var
+import at.forsyte.harrsh.seplog.{NullConst, Var}
 
 /**
   * Created by Matthias Hetzenberger on 2021-02-08
@@ -30,7 +30,7 @@ case class Query(formula: GslFormula, sid: SID, fromEntailment: Boolean = false)
 
         val newFvars = formulaRenamed.freeVars
 
-        Right(AliasingConstraint.allAliasingConstraints(newFvars).exists(ac => {
+        Right(AliasingConstraint.allAliasingConstraints(newFvars.incl(NullConst)).exists(ac => {
           println("Current AC: " + ac + "\n")
 
           val tc = new TypeComputation(sidBTW, formulaRenamed)

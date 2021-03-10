@@ -2,7 +2,7 @@ package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{DisEquality, Equality, PointsTo, PredicateCall}
-import at.forsyte.harrsh.seplog.FreeVar
+import at.forsyte.harrsh.seplog.{FreeVar, NullConst}
 import com.typesafe.scalalogging.LazyLogging
 
 class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLogging {
@@ -45,7 +45,7 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
       case Atom.Emp() => Set(PhiType.empty)
       case e: Equality => TypeComputation.equality(e, ac)
       case d: DisEquality => TypeComputation.disEquality(d, ac)
-      case p: PointsTo => Set(PhiType.ptrmodel(sid, ac, p))
+      case p: PointsTo => TypeComputation.pointsTo(p, ac, sid)
       case PredicateCall(predName, args) =>
 
         val pred = sid.predicates(predName)
@@ -110,4 +110,12 @@ object TypeComputation {
   def equality(eq: Equality, ac: AliasingConstraint): Set[PhiType] = if (ac =:= (eq.left, eq.right)) Set(PhiType.empty) else Set()
 
   def disEquality(disEq: DisEquality, ac: AliasingConstraint): Set[PhiType] = if (ac =:= (disEq.left, disEq.right)) Set() else Set(PhiType.empty)
+
+  def pointsTo(pointsTo: PointsTo, ac: AliasingConstraint, sid: SID_btw): Set[PhiType] =
+    if (ac =:= (pointsTo.from, NullConst)) {
+      Set.empty
+    } else {
+      val r = Set(PhiType.ptrmodel(sid, ac, pointsTo))
+      r
+    }
 }

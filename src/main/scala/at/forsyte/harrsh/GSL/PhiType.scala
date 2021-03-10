@@ -36,6 +36,9 @@ case class PhiType private(projections: SortedSet[StackForestProjection]) extend
   override def compare(that: PhiType): Int = {
     scala.Ordering.Implicits.sortedSetOrdering[SortedSet, StackForestProjection].compare(this.projections, that.projections)
   }
+
+  def substitute(subst: Map[Var, Var]): PhiType = PhiType(SortedSet.from(projections.map(_.substitute(subst))))
+
 }
 
 object PhiType {
@@ -65,8 +68,8 @@ object PhiType {
 
     //val itt = it.filterNot(prop)
 
-    if (it.exists(sf => sf.freeVars.exists(v => ac.largestAlias(v) != v))) {
-      println("largets")
+    if (Utils.nonCanonicalSF(it, ac)) {
+      println("largest")
     }
 
     if (it.exists(unsat)) {
@@ -75,8 +78,8 @@ object PhiType {
 
     if (it.exists(prop)) {
       println("here")
-//      // TODO Completeness?
-//      None
+      //      // TODO Completeness?
+      //      None
     }
 
     //val it2 = it.filter(sf => sf.formula.forall(tp => !tp.allholepreds.contains(tp.rootpred)))
@@ -93,7 +96,7 @@ object PhiType {
                                                                             SortedSet.empty))))
 
   def composition(sid: SID_btw, left: PhiType, right: PhiType, ac: AliasingConstraint): Option[PhiType] = {
-    if ((left.alloced(sid)/*.map(v => ac.largestAlias(v))*/ intersect right.alloced(sid)/*.map(v => ac.largestAlias(v))*/).isEmpty) {
+    if ((left.alloced(sid) /*.map(v => ac.largestAlias(v))*/ intersect right.alloced(sid)).isEmpty) {
 
       val projections = for (phi1 <- left.projections.unsorted;
                              phi2 <- right.projections.unsorted) yield StackForestProjection.composition(phi1, phi2)

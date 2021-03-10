@@ -3,7 +3,7 @@ package at.forsyte.harrsh.GSL
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{DisEquality, Equality, PointsTo, PredicateCall}
 import at.forsyte.harrsh.GSL.SID.Predicate
-import at.forsyte.harrsh.seplog.{FreeVar, Var}
+import at.forsyte.harrsh.seplog.{FreeVar, NullConst, Var}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.{immutable, mutable}
@@ -31,9 +31,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
   def ptypes(atom: Atom, ac: AliasingConstraint, lookup: LookupFunction): Iterable[PhiType] = atom match {
     case e: Equality => TypeComputation.equality(e, ac)
     case d: DisEquality => TypeComputation.disEquality(d, ac)
-    case p: PointsTo =>
-      val r = Set(PhiType.ptrmodel(sid, ac, p))
-      r
+    case p: PointsTo => TypeComputation.pointsTo(p, ac, sid)
     case PredicateCall(predName, args) =>
       val pred = sid.predicates(predName)
 
@@ -50,16 +48,23 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       require((parameters intersect argsPlaceholders).isEmpty)
       val acExtended = acPlaceholders.reverseRenaming(parameters, argsPlaceholders)
 
-      val acExtendedRestricted = acExtended.restricted(x union parameters.toSet)
+      val acExtendedRestricted = acExtended.restricted((x union parameters.toSet).incl(NullConst))
 
       //      val types = stateGet(pred.name, acExtendedRestricted)
       //      val types = unfoldLazy(it, pred, acExtendedRestricted)
-      val types = lookup(pred, acExtendedRestricted)
+      val substMax = acExtended.domain.map(v => (v, acExtended.largestAlias(v))).toMap
+
+      val types = lookup(pred, acExtendedRestricted).map(_.substitute(substMax))
 
       val typesExtended = PhiType.extend(acPlaceholders, acExtended, types, sid)
 
-      val r = PhiType.rename(parameters, args.asInstanceOf[Seq[FreeVar]], ac, typesExtended, sid)
+      val substMax2 = ac.domain.map(v => (v, ac.largestAlias(v))).toMap
+      val r = PhiType.rename(parameters, args.asInstanceOf[Seq[FreeVar]], ac, typesExtended, sid).map(_.substitute(substMax2))
 
+      //r.map(_.substitute(substMax))
+      if (Utils.nonCanonical(r, ac)) {
+        println("sdf")
+      }
       r
   }
 
@@ -92,7 +97,11 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     if (table(it).contains((pred.name, ac))) {
       val ret = table(it)((pred.name, ac))
 
-      println(ret + " " + ac)
+      //println(ret + " " + ac)
+
+      if (Utils.nonCanonical(ret, ac)) {
+        println("here")
+      }
 
       ret
     } else {
@@ -120,8 +129,9 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
       val ret = table(it)((pred.name, ac))
 
-      println(ret + " " + ac)
-
+      if (Utils.nonCanonical(ret, ac)) {
+        println("here")
+      }
       ret
     }
   }
