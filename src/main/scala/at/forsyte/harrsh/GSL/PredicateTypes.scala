@@ -22,6 +22,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
   private var allFinished: Boolean = false
   val queue: mutable.Queue[(AliasingConstraint, SID.Predicate[SymbolicHeapBtw])] = mutable.Queue.empty
   val iterations: mutable.Map[(String, AliasingConstraint), Int] = mutable.Map.empty
+  //val predProgress: mutable.Map[(String, AliasingConstraint), Int] = mutable.Map.empty
 
   private def stateGet(s: String, ac: AliasingConstraint): mutable.Set[PhiType] = {
     state.getOrElse(s, mutable.Map.empty).getOrElse(ac, mutable.Set.empty)
@@ -64,7 +65,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
   def ptypes(atoms: Seq[Atom], ac: AliasingConstraint, lookup: LookupFunction): Iterable[PhiType] = atoms match {
     case atom +: Seq() => ptypes(atom, ac, lookup)
-    case head +: rest => PhiType.composition(sid, ptypes(head, ac, lookup), ptypes(rest, ac, lookup))
+    case head +: rest => PhiType.composition(sid, ptypes(head, ac, lookup), ptypes(rest, ac, lookup), ac)
   }
 
   def ptypes(sh: SymbolicHeapBtw, ac: AliasingConstraint, lookup: LookupFunction): Iterable[PhiType] =
@@ -88,13 +89,22 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     if (!table.contains(it))
       table.put(it, mutable.Map.empty)
 
-    if (table(it).contains((pred.name, ac))) table(it)((pred.name, ac))
-    else {
+    if (table(it).contains((pred.name, ac))) {
+      val ret = table(it)((pred.name, ac))
+
+      println(ret + " " + ac)
+
+      ret
+    } else {
 
       val newTypes = mutable.Set.empty[PhiType]
       for (rule <- pred.rules) {
         if (rule.isRecursive) {
           val discovered = ptypes(rule, ac, (p, a) => unfoldLazy(it - 1, p, a))
+          /*val discovered = ptypes(rule, ac, (p, a) => {
+            val i = predProgress.getOrElse((p.name, a), 0)
+            unfoldLazy(Math.max(i, it - 1), p, a)
+          })*/
           newTypes.addAll(discovered)
         } else {
           if (!nonRecursiveTypes.contains((rule, ac))) {
@@ -106,8 +116,13 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       }
 
       table(it).put((pred.name, ac), Set.from(newTypes))
+      //predProgress.updateWith((pred.name, ac))(Function.const(Some(it)))
 
-      table(it)((pred.name, ac))
+      val ret = table(it)((pred.name, ac))
+
+      println(ret + " " + ac)
+
+      ret
     }
   }
 

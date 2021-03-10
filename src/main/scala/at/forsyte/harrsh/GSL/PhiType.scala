@@ -22,11 +22,11 @@ case class PhiType private(projections: SortedSet[StackForestProjection]) extend
   }
 
   def forget(ac: AliasingConstraint, x: FreeVar, sid: SID_btw): Option[PhiType] = {
-    PhiType.from(projections.map(_.forget(ac, x)).filter(_.isDelimited(sid)), sid)
+    PhiType.from(projections.map(_.forget(ac, x)).filter(_.isDelimited(sid)), sid, ac)
   }
 
-  def extend(x: FreeVar, sid: SID_btw): Option[PhiType] = {
-    PhiType.from(projections ++ projections.flatMap(_.extend(x)), sid)
+  def extend(x: FreeVar, sid: SID_btw, ac: AliasingConstraint): Option[PhiType] = {
+    PhiType.from(projections ++ projections.flatMap(_.extend(x)), sid, ac)
   }
 
   def extend(ac: AliasingConstraint, acSup: AliasingConstraint, sid: SID_btw): PhiType = {
@@ -40,7 +40,12 @@ case class PhiType private(projections: SortedSet[StackForestProjection]) extend
 
 object PhiType {
 
-  def from(it: Iterable[StackForestProjection], sid: SID_btw): Option[PhiType] = {
+  def from(it: Iterable[StackForestProjection], sid: SID_btw, ac: AliasingConstraint): Option[PhiType] = {
+
+    /*val itSubst = it.map(sf => {
+      val subst: Map[Var, Var] = sf.freeVars.map(v => (v, ac.largestAlias(v))).toMap
+      sf.substitute(subst)
+    })*/
 
     def prop(sf: StackForestProjection): Boolean = {
       val vars = sf.formula.unsorted.map(_.rootpred).map({ case PredicateCall(pred, args) =>
@@ -51,7 +56,22 @@ object PhiType {
       vars.size < sf.formula.size
     }
 
-    val itt = it.filterNot(prop)
+    def unsat(sf: StackForestProjection): Boolean = {
+      val su: Map[Var, Var] = sf.freeVars.map(v => (v, ac.largestAlias(v))).toMap
+      val sf2 = sf.substitute(su)
+
+      prop(sf2)
+    }
+
+    //val itt = it.filterNot(prop)
+
+    if (it.exists(sf => sf.freeVars.exists(v => ac.largestAlias(v) != v))) {
+      println("largets")
+    }
+
+    if (it.exists(unsat)) {
+      println("unsat")
+    }
 
     if (it.exists(prop)) {
       println("here")
@@ -61,10 +81,10 @@ object PhiType {
 
     //val it2 = it.filter(sf => sf.formula.forall(tp => !tp.allholepreds.contains(tp.rootpred)))
 
-    if (itt.exists(!_.isDelimited(sid))) {
+    if (it.exists(!_.isDelimited(sid))) {
       None
     } else {
-      Some(PhiType(SortedSet.from(itt)))
+      Some(PhiType(SortedSet.from(it)))
     }
   }
 
@@ -72,20 +92,20 @@ object PhiType {
                                                                             SortedSet.empty,
                                                                             SortedSet.empty))))
 
-  def composition(sid: SID_btw, left: PhiType, right: PhiType): Option[PhiType] = {
-    if ((left.alloced(sid) intersect right.alloced(sid)).isEmpty) {
+  def composition(sid: SID_btw, left: PhiType, right: PhiType, ac: AliasingConstraint): Option[PhiType] = {
+    if ((left.alloced(sid)/*.map(v => ac.largestAlias(v))*/ intersect right.alloced(sid)/*.map(v => ac.largestAlias(v))*/).isEmpty) {
 
       val projections = for (phi1 <- left.projections.unsorted;
                              phi2 <- right.projections.unsorted) yield StackForestProjection.composition(phi1, phi2)
-      PhiType.from(projections.flatten.filter(_.isDelimited(sid)), sid)
+      PhiType.from(projections.flatten.filter(_.isDelimited(sid)), sid, ac)
     } else {
       None
     }
   }
 
-  def composition(sid: SID_btw, left: Iterable[PhiType], right: Iterable[PhiType]): Iterable[PhiType] =
+  def composition(sid: SID_btw, left: Iterable[PhiType], right: Iterable[PhiType], ac: AliasingConstraint): Iterable[PhiType] =
     (for (l <- left;
-          r <- right) yield composition(sid, l, r)).flatten
+          r <- right) yield composition(sid, l, r, ac)).flatten
 
   def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint, types: Iterable[PhiType], sid: SID_btw): Iterable[PhiType] = {
     require(x.length == y.length)
@@ -94,12 +114,12 @@ object PhiType {
 
     val yMax = y.map(ac.largestAlias)
     val subst: Map[Var, Var] = x.zip(yMax).toMap
-    types.flatMap(t => PhiType.from(t.projections.map(_.substitute(subst)), sid))
+    types.flatMap(t => PhiType.from(t.projections.map(_.substitute(subst)), sid, ac))
   }
 
   def forget(sid: SID_btw, ac: AliasingConstraint, x: FreeVar, types: Iterable[PhiType]): Iterable[PhiType] = types.flatMap(_.forget(ac, x, sid))
 
-  def extend(x: FreeVar, types: Iterable[PhiType], sid: SID_btw): Iterable[PhiType] = types.flatMap(_.extend(x, sid))
+  def extend(x: FreeVar, types: Iterable[PhiType], sid: SID_btw, ac: AliasingConstraint): Iterable[PhiType] = types.flatMap(_.extend(x, sid, ac))
 
   def extend(ac: AliasingConstraint, acSup: AliasingConstraint, types: Iterable[PhiType], sid: SID_btw): Iterable[PhiType] = {
     require(ac.subsetOf(acSup))
@@ -113,9 +133,9 @@ object PhiType {
 
     types.flatMap({ case PhiType(projections) =>
       def aux: Int => Option[PhiType] = {
-        case 0 => PhiType.from(projections.map(_.substitute(subst)), sid)
+        case 0 => PhiType.from(projections.map(_.substitute(subst)), sid, acSup)
         case n => aux(n - 1) match {
-          case Some(value) => value.extend(z(n - 1), sid)
+          case Some(value) => value.extend(z(n - 1), sid, acSup)
           case None => None
         }
       }
@@ -132,7 +152,7 @@ object PhiType {
     // TODO null
     val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size + k)
 
-    val r = PhiType.from(R.map({ case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm) }).filter(_.isDelimited(sid)), sid)
+    val r = PhiType.from(R.map({ case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm) }).filter(_.isDelimited(sid)), sid, ac)
 
     r.get
   }

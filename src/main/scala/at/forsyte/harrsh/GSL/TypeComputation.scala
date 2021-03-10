@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLogging {
 
+  val predicateTypes = new PredicateTypes(sid, formula.freeVars)
 
   sealed trait Quantifier {
     def test[A](coll: Iterable[A], p: A => Boolean): Boolean
@@ -29,7 +30,7 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
     val leftTypes = types(left, ac)
     val rightTypes = types(right, ac)
 
-    guardTypes.filter(phiType => q.test(leftTypes, (leftType: PhiType) => PhiType.composition(sid, phiType, leftType) match {
+    guardTypes.filter(phiType => q.test(leftTypes, (leftType: PhiType) => PhiType.composition(sid, phiType, leftType, ac) match {
       case Some(compositionType) => rightTypes contains compositionType
       case None => false
     }))
@@ -45,11 +46,14 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
       case e: Equality => TypeComputation.equality(e, ac)
       case d: DisEquality => TypeComputation.disEquality(d, ac)
       case p: PointsTo => Set(PhiType.ptrmodel(sid, ac, p))
-      case c@PredicateCall(predName, args) =>
-        val s = new PredicateTypes(sid, formula.freeVars)
+      case PredicateCall(predName, args) =>
+
         val pred = sid.predicates(predName)
-//        val types = s.getType(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))
-        val types = s.getTypeLazy(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))
+        val types = predicateTypes.getTypeLazy(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))
+        //val acRev = ac.reverseRenaming(pred.args.map(FreeVar), args)
+        //val acRem = acRev.remove(args)
+
+        //val types = predicateTypes.getTypeLazy(pred, acRem /*ac.reverseRenaming(pred.args.map(FreeVar), args)*/)
         PhiType.rename(pred.args.map(FreeVar), args.asInstanceOf[Seq[FreeVar]], ac, types, sid).toSet
 
       //s.computeTypes(c, ac.restricted(args.toSet)).toSet
@@ -71,7 +75,7 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
       val leftTypes = types(left, ac)
       val rightTypes = types(right, ac)
 
-      val composition = PhiType.composition(sid, leftTypes, rightTypes).toSet
+      val composition = PhiType.composition(sid, leftTypes, rightTypes, ac).toSet
 
       println(gslFormula)
       println(leftTypes)

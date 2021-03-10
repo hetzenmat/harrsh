@@ -5,7 +5,6 @@ import at.forsyte.harrsh.seplog.Var
 
 import scala.collection.SortedSet
 import scala.collection.mutable.ListBuffer
-import scala.runtime.ScalaRunTime
 
 class AliasingConstraint(val partition: Seq[SortedSet[Var]], val eqClass: Map[Var, Int]) {
 
@@ -43,6 +42,18 @@ class AliasingConstraint(val partition: Seq[SortedSet[Var]], val eqClass: Map[Va
 
     val newPartition = partition.map(ss => ss.map(v => subst.getOrElse(v, v)))
     val newEqClass = eqClass.map(kv => (subst.getOrElse(kv._1, kv._1), kv._2))
+
+    new AliasingConstraint(newPartition, newEqClass)
+  }
+
+  def remove(vars: Seq[Var]): AliasingConstraint = vars.foldLeft(this) { (ac, x) => ac.remove(x) }
+
+  def remove(x: Var): AliasingConstraint = {
+    require(domain.contains(x))
+    require(this (x).size > 1)
+
+    val newEqClass = eqClass.filter(_._1 != x)
+    val newPartition = partition.map(_.filter(_ != x))
 
     new AliasingConstraint(newPartition, newEqClass)
   }
