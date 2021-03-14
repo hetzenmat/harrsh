@@ -96,6 +96,17 @@ case class BoundVar(index: Int) extends Var {
 
 }
 
+object BoundVar {
+
+  def from(start: Int, to: Int, offset: Int = 0): IndexedSeq[BoundVar] = {
+    fromRange((start + offset) to (to + offset))
+  }
+
+  def fromRange(range: Range): IndexedSeq[BoundVar] = {
+    range.map(i => BoundVar(i))
+  }
+}
+
 object Var {
 
   val NullString = "null"

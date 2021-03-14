@@ -79,7 +79,13 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       val allExtensions = ac.allExtensions(fresh)
       allExtensions.flatMap(ac_ => {
         val types = ptypes(sh.dropFirstQuantifiedVar(fresh), ac_, lookup)
-        PhiType.forget(sid, ac_, fresh, types)
+
+        val r = PhiType.forget(sid, ac_, fresh, types)
+        if (types.nonEmpty && ac_(fresh).size == 1) {
+          println("")
+        }
+
+        r
       })
     } else ptypes(sh.atoms, ac, lookup)
 
@@ -97,10 +103,10 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     if (table(it).contains((pred.name, ac))) {
       val ret = table(it)((pred.name, ac))
 
-      println(ret)
+//      println(ret)
 
       if (Utils.nonCanonical(ret, ac)) {
-        println("here")
+        ???
       }
 
       ret
@@ -129,7 +135,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
       val ret = table(it)((pred.name, ac))
 
-      println(ret)
+//      println(ret)
 
       if (Utils.nonCanonical(ret, ac)) {
         ???

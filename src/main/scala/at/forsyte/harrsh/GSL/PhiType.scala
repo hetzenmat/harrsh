@@ -68,9 +68,9 @@ object PhiType {
 
     //val itt = it.filterNot(prop)
 
-    if (Utils.nonCanonicalSF(it, ac)) {
-      println("largest")
-    }
+//    if (Utils.nonCanonicalSF(it, ac)) {
+//      println("largest")
+//    }
 
     if (it.exists(unsat)) {
       println("unsat")
@@ -97,6 +97,9 @@ object PhiType {
                                                                             SortedSet.empty))))
 
   def composition(sid: SID_btw, left: PhiType, right: PhiType, ac: AliasingConstraint): Option[PhiType] = {
+    if (Utils.nonCanonical(left, ac) || Utils.nonCanonical(right, ac)) {
+      println("sdf")
+    }
     if ((left.alloced(sid) /*.map(v => ac.largestAlias(v))*/ intersect right.alloced(sid)).isEmpty) {
 
       val projections = for (phi1 <- left.projections.unsorted;
@@ -150,14 +153,10 @@ object PhiType {
 
   def ptrmodel(sid: SID_btw, ac: AliasingConstraint, pointsTo: PointsTo): PhiType = {
 
-    if (pointsTo.from == FreeVar("a") && pointsTo.to == Seq(NullConst)) {
-      println()
-    }
-
-    val pm = pointsTo.ptrmodel(ac)
+    val pm = pointsTo.ptrmodel(ac.restricted(pointsTo.vars.incl(NullConst)))
 
     val k = sid.predicates.values.map(_.args.length).max
-    // TODO null
+
     val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size + k)
 
     val r = PhiType.from(R.map({ case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm) }).filter(_.isDelimited(sid)), sid, ac)

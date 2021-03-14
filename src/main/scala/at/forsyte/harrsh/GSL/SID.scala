@@ -113,7 +113,7 @@ case class SID_btw private(predicates: Map[String, SID.Predicate[SymbolicHeapBtw
                           rule <- pred.rules if rule.pointsTo.to.length == to.length;
                           instantiationSize = pred.args.length + rule.quantifiedVars.length;
                           instantiation <- Utils.allSeqsWithRange(instantiationSize, range);
-                          subst: Map[Var, Int] = (pred.args.map(FreeVar) ++ (1 to rule.quantifiedVars.length).map(BoundVar)).zip(instantiation).toMap) yield (subst, rule.instantiate(pred, instantiation.take(pred.args.length), subst))
+                          subst: Map[Var, Int] = (pred.args.map(FreeVar) ++ (1 to rule.quantifiedVars.length).map(BoundVar.apply)).zip(instantiation).toMap) yield (subst, rule.instantiate(pred, instantiation.take(pred.args.length), subst))
 
 
     candidates.collect({ case (v, Some(r@RuleInstance(_, _, from_, to_, _))) if from == from_ && to == to_ => (v, r) })

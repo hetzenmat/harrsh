@@ -59,9 +59,9 @@ class StackForestProjectionTest extends AnyFlatSpec {
     val allRescopings = StackForestProjection.allRescopings(left, right)
     assert(allRescopings.contains(result))
 
-    assert(allRescopings.flatMap(_.derivableSet).exists(_.formula == Seq(TreeProjection(Seq(), P("cyclic")(x, y, z)))))
+    assert(allRescopings.flatMap(_.derivableSet).exists(_.formula == SortedSet(TreeProjection(Seq(), P("cyclic")(x, y, z)))))
 
-    assert(StackForestProjection.composition(left, right).exists(_.formula == Seq(TreeProjection(Seq(), P("cyclic")(x, y, z)))))
+    assert(StackForestProjection.composition(left, right).exists(_.formula == SortedSet(TreeProjection(Seq(), P("cyclic")(x, y, z)))))
   }
 
   it should "correctly compute composition of Example 10.30 in 'Dissertation Pagel'" in {
