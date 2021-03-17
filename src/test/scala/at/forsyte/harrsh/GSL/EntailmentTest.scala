@@ -66,7 +66,7 @@ class EntailmentTest extends AnyFlatSpec {
   }
 
 
-  "Type computation" should "correctly decide entailments (lseg) (Does not yet work)" in {
+  "Type computation" should "correctly decide entailments (lseg)" in {
     val left = parseFormula("lseg(a, b) * lseg(b, c)")
     val right = parseFormula("lseg(a, c)")
 

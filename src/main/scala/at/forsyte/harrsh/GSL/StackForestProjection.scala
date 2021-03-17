@@ -44,7 +44,7 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
   val variableSeq: Seq[Var] = varSeq(formula)
   val multSubst: Map[Var, Var] = (guardedExistentials.toSeq.map(ex => (ex, Multiplicity(variableSeq.count(_ == ex)))) ++
     guardedUniversals.toSeq.map(uv => (uv, Multiplicity(-variableSeq.count(_ == uv))))).toMap
-  val formulaMultiplicites: SortedSet[TreeProjection] = formula.map(tp => tp.substitute(multSubst))
+  val formulaMultiplicites: SortedSet[TreeProjection] = formula/*.filterNot(t => t.allholepreds.contains(t.rootpred))*/.map(tp => tp.substitute(multSubst))
 
   require(guardedExistentials.intersect(guardedUniversals).isEmpty,
           "No duplicates between quantifier blocks allowed")
@@ -143,9 +143,13 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
       return false
     }
 
+    if (formula.exists(tp => tp.allholepreds.size == 1 && tp.allholepreds.head == tp.rootpred)) {
+      return false
+    }
+
     val cond2 = formula.forall(tp => !tp.allholepreds.contains(tp.rootpred))
     if (!cond2) {
-      return false
+      //return false
     }
 
     def prop(sf: StackForestProjection): Boolean = {
@@ -162,7 +166,7 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
       return false
     }
 
-    val allPredCallsLeft = formula.flatMap(_.allholepreds)
+    val allPredCallsLeft: Seq[PredicateCall] = formula.toSeq.flatMap(_.allholepreds)
     val allVars = freeVars.asInstanceOf[Set[Var]].union(boundVars.asInstanceOf[Set[Var]])
 
     val r = allVars.forall(variable => allPredCallsLeft.count(p => p.args(sid.predicates(p.pred).predrootIndex) == variable) <= 1)
@@ -227,6 +231,9 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
         new StackForestProjection(guardedExistentials.union(Set(bound)), newUniversals, formula.map(_.substitute(subst)), op)
       } else {
         val nextLargest = ac(x).diff(Set(x)).max
+        if (nextLargest == NullConst) {
+          print("")
+        }
         val subst: Map[Var, Var] = Map((x, nextLargest))
         new StackForestProjection(guardedExistentials, guardedUniversals, formula.map(_.substitute(subst)), op)
       }
@@ -359,7 +366,7 @@ object StackForestProjection {
     //      allRescopings(right, left).filter(_.isDelimited(sid)).flatMap(sfp => sfp.deriveGreedy /*.incl(sfp) TODO*/)
     //    val r = allRescopings(left, right).flatMap(sfp => sfp.derivableSet /*.incl(sfp) TODO*/)
 
-    (allRescopings(left, right) union allRescopings(right, left)).flatMap(sfp => sfp.deriveGreedy /*.incl(sfp) TODO*/)
+    (allRescopings(left, right) union allRescopings(right, left)).flatMap(sfp => sfp.derivableSet /*.incl(sfp) TODO*/)
 
   }
 

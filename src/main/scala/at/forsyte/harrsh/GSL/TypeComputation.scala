@@ -38,6 +38,15 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
 
   def types(ac: AliasingConstraint): Set[PhiType] = types(formula, ac)
 
+  def _reduce(types: Set[PhiType]): Set[PhiType] = {
+
+    types.find(typ => types.excl(typ).exists(other => typ.projections.subsetOf(other.projections))) match {
+      case Some(typ) => _reduce(types.excl(typ))
+      case None => types
+    }
+
+
+  }
 
   private def types(gslFormula: GslFormula, ac: AliasingConstraint): Set[PhiType] = gslFormula match {
     case atom: Atom => atom match {
@@ -97,8 +106,12 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
 
     case GslFormula.Disjunction(left, right) => types(left, ac) union types(right, ac)
     case GslFormula.Negation(guard, negated) =>
-      val guardTypes = types(guard, ac) //.map(_.filterDUSH(sid, ac))
-    val negatedTypes = types(negated, ac) //.map(_.filterDUSH(sid, ac))
+      val guardTypes = types(guard, ac).map({ case PhiType(projections) =>
+        PhiType(projections.filter(sf => sf.formula.forall(tp => !tp.allholepreds.contains(tp.rootpred))))
+      }) //.map(_.filterDUSH(sid, ac))
+      val negatedTypes = types(negated, ac).map({ case PhiType(projections) =>
+        PhiType(projections.filter(sf => sf.formula.forall(tp => !tp.allholepreds.contains(tp.rootpred))))
+      }) //.map(_.filterDUSH(sid, ac))
 
       println(gslFormula)
       val guardSorted = guardTypes.toSeq.sorted

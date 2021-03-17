@@ -90,7 +90,7 @@ object SymbolicHeap {
   def buildSymbolicHeap(quantifiedVars: Seq[String], atoms: Seq[Atom]): SymbolicHeap = {
 
     val boundRenaming: Map[Var, Var] = quantifiedVars.zipWithIndex.map({ case (v, i) => (FreeVar(v), BoundVar(i + 1)) }).toMap
-    val renamedAtoms: Seq[Atom] = atoms.map(_.substitute(boundRenaming))
+    val renamedAtoms: Seq[Atom#T] = atoms.map(_.substitute(boundRenaming))
 
     SymbolicHeap(quantifiedVars,
                  spatial = renamedAtoms.collect { case a: PointsTo => a },
