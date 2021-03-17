@@ -43,6 +43,7 @@ sealed trait Var extends Ordered[Var] {
 
   override def compare(other: Var): Int = (this, other) match {
     case (BoundVar(i), BoundVar(j)) => i - j
+    case (Multiplicity(i), Multiplicity(j)) => i - j
     case (BoundVar(_), NullConst) => -1
     case (BoundVar(_), FreeVar(_)) => -1
     case (NullConst, FreeVar(_)) => -1
@@ -50,8 +51,20 @@ sealed trait Var extends Ordered[Var] {
     case (NullConst, _) => 1
     case (FreeVar(m), FreeVar(n)) => m compare n
     case (FreeVar(_), _) => 1
+    case (Multiplicity(_), _) => -1
+    case (_, Multiplicity(_)) => 1
   }
 
+}
+
+case class Multiplicity(amount: Int) extends Var {
+  override def isFreeNonNull: Boolean = false
+
+  override def isFree: Boolean = false
+
+  override def isBound: Boolean = true
+
+  override def isNull: Boolean = false
 }
 
 case class FreeVar(name: String) extends Var {

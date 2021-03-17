@@ -15,6 +15,11 @@ case class PhiType private(projections: SortedSet[StackForestProjection]) extend
                                                        .map(_.rootpred)
                                                        .map(c => c.args(sid.predicates(c.pred).predrootIndex)).asInstanceOf[Set[FreeVar]]
 
+  def filterDUSH(sid: SID_btw, ac: AliasingConstraint): PhiType = {
+    println()
+    PhiType.from(projections.unsorted.filter(_.isDUSH(sid)), sid, ac).get
+  }
+
   def freeVars: SortedSet[FreeVar] = projections.flatMap(_.freeVars)
 
   def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint, sid: SID_btw): PhiType = {
@@ -84,17 +89,32 @@ object PhiType {
 
     //val it2 = it.filter(sf => sf.formula.forall(tp => !tp.allholepreds.contains(tp.rootpred)))
 
-    if (it.isEmpty || it.exists(!_.isDelimited(sid))) {
+    if (it.isEmpty) {
+      print("")
+    }
+
+    if (it.exists(!_.isDelimited(sid))) {
+      ???
+    }
+
+    if (it.isEmpty /*|| it.exists(!_.isDelimited(sid))*/) {
       // TODO: Really return None if empty?
       None
     } else {
-      Some(PhiType(SortedSet.from(it)))
+//      val closure = it.flatMap(f => StackForestProjection.composition(f, new StackForestProjection(SortedSet.empty,
+//                                                                                                   SortedSet.empty,
+//                                                                                                   SortedSet.empty,
+//                                                                                                   Empty), sid))
+//                      .filter(_.isDelimited(sid))
+      val closure = it.flatMap(_.impliedSet(sid)).filter(_.isDelimited(sid))
+      Some(PhiType(SortedSet.from(closure)))
     }
   }
 
   def empty: PhiType = PhiType(SortedSet.from(Seq(new StackForestProjection(SortedSet.empty,
                                                                             SortedSet.empty,
-                                                                            SortedSet.empty))))
+                                                                            SortedSet.empty,
+                                                                            Empty))))
 
   def composition(sid: SID_btw, left: PhiType, right: PhiType, ac: AliasingConstraint): Option[PhiType] = {
     if (Utils.nonCanonical(left, ac) || Utils.nonCanonical(right, ac)) {
@@ -103,7 +123,7 @@ object PhiType {
     if ((left.alloced(sid) /*.map(v => ac.largestAlias(v))*/ intersect right.alloced(sid)).isEmpty) {
 
       val projections = for (phi1 <- left.projections.unsorted;
-                             phi2 <- right.projections.unsorted) yield StackForestProjection.composition(phi1, phi2)
+                             phi2 <- right.projections.unsorted) yield StackForestProjection.composition(phi1, phi2, sid)
       PhiType.from(projections.flatten.filter(_.isDelimited(sid)), sid, ac)
     } else {
       None
@@ -138,7 +158,11 @@ object PhiType {
     // TODO: Recheck definition
     val z = acSup.partition.map(_.max).filter(z_ => ac.domain.forall(y => acSup =/= (y, z_))).asInstanceOf[Seq[FreeVar]]
 
-    types.flatMap({ case PhiType(projections) =>
+    if (ac.partition.size != acSup.partition.size && types.nonEmpty) {
+      print("")
+    }
+
+    val r = types.flatMap({ case PhiType(projections) =>
       def aux: Int => Option[PhiType] = {
         case 0 => PhiType.from(projections.map(_.substitute(subst)), sid, acSup)
         case n => aux(n - 1) match {
@@ -149,6 +173,8 @@ object PhiType {
 
       aux(z.length)
     })
+
+    r
   }
 
   def ptrmodel(sid: SID_btw, ac: AliasingConstraint, pointsTo: PointsTo): PhiType = {
@@ -159,7 +185,7 @@ object PhiType {
 
     val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size + k)
 
-    val r = PhiType.from(R.map({ case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm) }).filter(_.isDelimited(sid)), sid, ac)
+    val r = PhiType.from(R.map({ case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm, pointsTo) }).filter(_.isDelimited(sid)), sid, ac)
 
     r.get
   }

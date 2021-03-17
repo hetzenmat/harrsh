@@ -97,19 +97,38 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
 
     case GslFormula.Disjunction(left, right) => types(left, ac) union types(right, ac)
     case GslFormula.Negation(guard, negated) =>
-      val guardTypes = types(guard, ac)
-      val negatedTypes = types(negated, ac)
+      val guardTypes = types(guard, ac) //.map(_.filterDUSH(sid, ac))
+    val negatedTypes = types(negated, ac) //.map(_.filterDUSH(sid, ac))
 
       println(gslFormula)
-      println("Guard:   " + guardTypes.toSeq.sorted)
-      println("Negated: " + negatedTypes.toSeq.sorted)
+      val guardSorted = guardTypes.toSeq.sorted
+      val negatedSorted = negatedTypes.toSeq.sorted
+      println("Guard:   " + guardSorted)
+      println("Negated: " + negatedSorted)
+
+      println()
+      println("Guard Enumeration: ")
+      for ((t, i) <- guardSorted.zipWithIndex) {
+        println((i + 1) + ": " + t)
+      }
+
+      println("\nNegated Enumeration: ")
+      for ((t, i) <- negatedSorted.zipWithIndex) {
+        println((i + 1) + ": " + t)
+      }
 
       val allLeft = guardTypes.flatMap(_.projections.unsorted)
       val allRight = negatedTypes.flatMap(_.projections.unsorted)
 
-      println("Left all: " + (allLeft.diff(allRight).toSeq.sorted))
+      val l = allLeft.diff(allRight).toSeq.sorted
+      println("Left all: " + l)
 
-      guardTypes diff negatedTypes
+      val r = guardTypes diff negatedTypes
+
+      val rSorted = r.toSeq.sorted
+      println("Result: " + rSorted)
+
+      r
     case GslFormula.MagicWand(guard, left, right) => magicWandSeptractionHelper(Forall, ac, guard, left, right)
     case GslFormula.Septraction(guard, left, right) => magicWandSeptractionHelper(Exists, ac, guard, left, right)
   }

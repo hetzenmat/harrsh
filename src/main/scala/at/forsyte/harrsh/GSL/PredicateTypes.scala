@@ -54,12 +54,13 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       //      val types = unfoldLazy(it, pred, acExtendedRestricted)
       val substMax = acExtended.domain.map(v => (v, acExtended.largestAlias(v))).toMap
 
-      val types = lookup(pred, acExtendedRestricted).map(_.substitute(substMax))
+      val types = lookup(pred, acExtendedRestricted)//.map(_.substitute(substMax))
 
-      val typesExtended = PhiType.extend(acPlaceholders, acExtended, types, sid)
+      //val typesExtended = PhiType.extend(acPlaceholders, acExtended, types, sid) TODO RECHEK
+      val typesExtended = PhiType.extend(acExtendedRestricted, acExtended, types, sid)
 
       val substMax2 = ac.domain.map(v => (v, ac.largestAlias(v))).toMap
-      val r = PhiType.rename(parameters, args.asInstanceOf[Seq[FreeVar]], ac, typesExtended, sid).map(_.substitute(substMax2))
+      val r = PhiType.rename(parameters ++ parametersPlaceholders.map(_._2), args.asInstanceOf[Seq[FreeVar]] ++ parametersPlaceholders.map(_._1), ac, typesExtended, sid).map(_.substitute(substMax2))
 
       //r.map(_.substitute(substMax))
       if (Utils.nonCanonical(r, ac)) {
@@ -81,10 +82,6 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
         val types = ptypes(sh.dropFirstQuantifiedVar(fresh), ac_, lookup)
 
         val r = PhiType.forget(sid, ac_, fresh, types)
-        if (types.nonEmpty && ac_(fresh).size == 1) {
-          println("")
-        }
-
         r
       })
     } else ptypes(sh.atoms, ac, lookup)
@@ -103,9 +100,9 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     if (table(it).contains((pred.name, ac))) {
       val ret = table(it)((pred.name, ac))
 
-//      println(ret)
+      //      println(ret)
 
-      if (Utils.nonCanonical(ret, ac)) {
+      if (Utils.nonCanonical(ret, ac) || ret.exists(_.projections.exists(!_.isDelimited(sid)))) {
         ???
       }
 
@@ -135,9 +132,9 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
       val ret = table(it)((pred.name, ac))
 
-//      println(ret)
+      //      println(ret)
 
-      if (Utils.nonCanonical(ret, ac)) {
+      if (Utils.nonCanonical(ret, ac) || ret.exists(_.projections.exists(!_.isDelimited(sid)))) {
         ???
       }
       ret
@@ -156,7 +153,10 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     }
     require(a.subsetOf(b))
 
-    unfoldLazy(current, pred, ac)
+    val result = unfoldLazy(current, pred, ac)
+
+    //result.map(_.filterDUSH(sid, ac))
+    result.flatMap(t => PhiType.from(t.projections.filter(_._isDelimited(sid)), sid, ac))
   }
 
   def getType(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
