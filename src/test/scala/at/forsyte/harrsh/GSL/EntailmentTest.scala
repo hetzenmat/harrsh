@@ -38,9 +38,28 @@ object SIDs {
       |ls(x1) <= ∃y.x1 -> (y) * ls(y)
       |""".stripMargin)
 
+  val even_odd: SID = get(
+    """
+      |odd(x1, x2) <= x1 -> (x2)
+      |odd(x1, x2) <= ∃a. x1 -> <a> * even(a, x2)
+      |even(x1, x2) <= ∃b. x1 -> b * odd(b, x2)
+      |""".stripMargin)
+
+  val btree: SID = get(
+    """
+      |btree(x1) <= x1 -> <null, null>
+      |btree(x1) <= ∃ l r. x1 -> <l, r> * btree(l) * btree(r)
+      |""".stripMargin
+  )
+
   val ptr1: SID = get(
     """
       |ptr1(x1,x2) <= x1 -> x2
+      |""".stripMargin)
+
+  val ptr2: SID = get(
+    """
+      |ptr2(x1,x2, x3) <= x1 -> (x2, x3)
       |""".stripMargin)
 
   def toBtw(s: SID): SID_btw = s.toBtw match {
@@ -76,12 +95,22 @@ class EntailmentTest extends AnyFlatSpec {
     }
   }
 
+  "Type computation" should "correctly decide entailments (btree)" in {
+    val left = parseFormula("a -> <b, c> * b -> <null, null> * c -> (null, null)")
+    val right = parseFormula("btree(a)")
+
+    Query.fromEntailment(left, right, SIDs.btree).entailmentHolds match {
+      case Left(value) => fail(value)
+      case Right(value) => assert(value)
+    }
+  }
+
   "Type computation" should "correctly decide easy entailments" in {
     val inputs: Seq[(GslFormula, GslFormula, SID, Boolean)] = Seq({
-      val left = parseFormula("a -> b * a = c")
-      val right = parseFormula("c -> b")
+      val left = parseFormula("a -> <b, a> * a = c")
+      val right = parseFormula("c -> <b, a>")
 
-      (left, right, SIDs.ptr1, true)
+      (left, right, SIDs.ptr2, true)
     }, {
       val left = parseFormula("a -> b * a = c")
       val right = parseFormula("c -> d")
@@ -118,6 +147,26 @@ class EntailmentTest extends AnyFlatSpec {
       Query.fromEntailment(left, right, sid).entailmentHolds match {
         case Left(value) => fail(value)
         case Right(value) => assert(value == expectation)
+      }
+    }
+  }
+
+  "Type computation" should "correctly decide entailments (even/odd)" in {
+    val inputs: Seq[(GslFormula, SID, Boolean)] = Seq(
+//      ("a -> b" |= "odd(a, b)", SIDs.even_odd, true),
+//      ("a -> b" |= "even(a, b)", SIDs.even_odd, false),
+//      ("a -> b * b -> c" |= "even(a, c)", SIDs.even_odd, true),
+//      ("a -> b * b -> c" |= "odd(a, c)", SIDs.even_odd, false),
+//      ("odd(a, b) * b -> c" |= "even(a, c)", SIDs.even_odd, true),
+//      ("odd(a, b) * b -> c" |= "odd(a, c)", SIDs.even_odd, false),
+      ("odd(a, b) * even(b, c)" |= "odd(a, c)", SIDs.even_odd, true)
+      )
+
+    for ((negation, sid, expectation) <- inputs) {
+      Query(negation, sid, fromEntailment = true).entailmentHolds match {
+        case Left(value) => fail(value)
+        case Right(value) =>
+          assert(value == expectation)
       }
     }
   }

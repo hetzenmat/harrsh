@@ -324,7 +324,7 @@ object StackForestProjection {
                                         TreeProjection(projectLoc._1.map({
                                           case (predName, args) =>
                                             Atom.PredicateCall(predName, args.map(i => univRepl.getOrElse(i, stackRepl(i))))
-                                        }), Atom.PredicateCall(projectLoc._2._1, projectLoc._2._2.map(i => univRepl.getOrElse(i, stackRepl(i))))))),
+                                        }).sorted, Atom.PredicateCall(projectLoc._2._1, projectLoc._2._2.map(i => univRepl.getOrElse(i, stackRepl(i))))))),
                                       Ptrmodel(ac, inst, model, pointsTo))
 
     r
@@ -494,7 +494,7 @@ case class TreeProjection(allholepreds: Seq[GslFormula.Atom.PredicateCall], root
   require(Utils.isSorted(allholepreds))
 
   def substitute(subst: Map[Var, Var]): TreeProjection = {
-    TreeProjection(allholepreds.map(_.substitute(subst)), rootpred.substitute(subst))
+    TreeProjection(allholepreds.map(_.substitute(subst)).sorted, rootpred.substitute(subst))
   }
 
   def allRootArguments(sid: SID_btw): Seq[Var] = {

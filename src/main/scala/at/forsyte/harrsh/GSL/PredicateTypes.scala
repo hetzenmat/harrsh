@@ -22,6 +22,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
   private var allFinished: Boolean = false
   val queue: mutable.Queue[(AliasingConstraint, SID.Predicate[SymbolicHeapBtw])] = mutable.Queue.empty
   val iterations: mutable.Map[(String, AliasingConstraint), Int] = mutable.Map.empty
+  var changed: Boolean = false
   //val predProgress: mutable.Map[(String, AliasingConstraint), Int] = mutable.Map.empty
 
   private def stateGet(s: String, ac: AliasingConstraint): mutable.Set[PhiType] = {
@@ -54,7 +55,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       //      val types = unfoldLazy(it, pred, acExtendedRestricted)
       val substMax = acExtended.domain.map(v => (v, acExtended.largestAlias(v))).toMap
 
-      val types = lookup(pred, acExtendedRestricted)//.map(_.substitute(substMax))
+      val types = lookup(pred, acExtendedRestricted) //.map(_.substitute(substMax))
 
       //val typesExtended = PhiType.extend(acPlaceholders, acExtended, types, sid) TODO RECHEK
       val typesExtended = PhiType.extend(acExtendedRestricted, acExtended, types, sid)
@@ -88,14 +89,31 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
 
   def unfoldLazy(it: Integer, pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
-    if (it == 0) return Set.empty
+
+
+    if (it == 0) {
+
+      //      sid.predicates.values.filter(_.rules.exists(!_.isRecursive)).foreach { nonRecursive =>
+      //        val types = ptypesIterationParallel(ac, nonRecursive, (_, _) => Set.empty)
+      //        table(0).put((pred.name, ac), types)
+      //      }
+      //
+      //      sid.predicates.values.filter(_.rules.forall(!_.isRecursive)).foreach { recursive =>
+      //        val types = ptypesIterationParallel(ac, recursive, (p, a) => unfoldLazy(0, p, a))
+      //        table(0).put((pred.name, ac), types)
+      //      }
+      //
+      //      return table(0)((pred.name, ac))
+
+      return Set.empty
+    }
 
     require(it > 0)
 
-    println(it + " " + pred.name + " " + ac)
-
     if (!table.contains(it))
       table.put(it, mutable.Map.empty)
+
+    println(it + " " + pred.name + " " + ac)
 
     if (table(it).contains((pred.name, ac))) {
       val ret = table(it)((pred.name, ac))
@@ -137,26 +155,46 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       if (Utils.nonCanonical(ret, ac) || ret.exists(_.projections.exists(!_.isDelimited(sid)))) {
         ???
       }
+
+      if (ret.size > unfoldLazy(it - 1, pred, ac).size)
+        changed = true
+
       ret
     }
   }
 
   def getTypeLazy(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
-    var current = 0
-    var a = unfoldLazy(current, pred, ac)
-    var b = unfoldLazy(current + 1, pred, ac)
-    while (a.size < b.size) {
-      require(a.subsetOf(b))
+
+    var current = 1
+    while (table.contains(current) && table(current).contains((pred.name, ac))) {
       current += 1
-      a = b
-      b = unfoldLazy(current + 1, pred, ac)
     }
-    require(a.subsetOf(b))
 
-    val result = unfoldLazy(current, pred, ac)
+    changed = true
+    var result: Set[PhiType] = Set.empty
+    var streak = 0
+    while (streak < 2) {
 
-    //result.map(_.filterDUSH(sid, ac))
-    result.flatMap(t => PhiType.from(t.projections.filter(_._isDelimited(sid)), sid, ac))
+      streak += 1
+      changed = false
+      result = unfoldLazy(current, pred, ac)
+      current += 1
+
+      if (changed)
+        streak = 0
+    }
+
+
+//    result = table(current - 1)((pred.name, ac))
+
+//    if (result != unfoldLazy(current, pred, ac)) {
+//      print("")
+//    }
+//    require(result == unfoldLazy(current, pred, ac))
+
+    val r = result.flatMap(t => PhiType.from(t.projections.filter(_._isDelimited(sid)), sid, ac))
+
+    r
   }
 
   def getType(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
@@ -176,9 +214,12 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     newTypes.toSet
   }
 
-  private def ptypesIterationParallel(ac: AliasingConstraint, pred: Predicate[SymbolicHeapBtw], ruleFilter: SymbolicHeapBtw => Boolean = Function.const(true)): Set[PhiType] = {
+  private def ptypesIterationParallel(ac: AliasingConstraint,
+                                      pred: Predicate[SymbolicHeapBtw],
+                                      lookup: LookupFunction,
+                                      ruleFilter: SymbolicHeapBtw => Boolean = Function.const(true)): Set[PhiType] = {
     val futures: Seq[Future[Set[PhiType]]] = pred.rules.filter(ruleFilter).map(rule => Future {
-      immutable.Set.from(ptypes(rule, ac, (p, a) => stateGet(p.name, a)))
+      immutable.Set.from(ptypes(rule, ac, lookup))
     })
 
     Await.result(Future.sequence(futures), Duration.Inf).flatten.toSet
@@ -187,7 +228,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
   private def computeNonRecursiveRules(ac: AliasingConstraint): Unit = {
     for (pred <- sid.predicates.values;
          rule <- pred.rules if !rule.isRecursive) {
-      val newTypes = ptypesIterationParallel(ac, pred, ruleFilter = !_.isRecursive)
+      val newTypes = ptypesIterationParallel(ac, pred, (p, a) => stateGet(p.name, a), ruleFilter = !_.isRecursive)
       if (!state.contains(pred.name)) state.put(pred.name, mutable.Map.empty)
       state(pred.name).put(ac, mutable.Set.from(newTypes))
 
@@ -230,7 +271,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       val elem = pq.dequeue()
 
       queue.clear()
-      val newTypes = ptypesIterationParallel(elem.ac, elem.pred, _.isRecursive)
+      val newTypes = ptypesIterationParallel(elem.ac, elem.pred, (p, a) => stateGet(p.name, a), _.isRecursive)
       iterations.updateWith((elem.pred.name, elem.ac)) { case Some(value) => Some(value + 1)
       case None => Some(0)
       }
@@ -283,7 +324,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
         println(nac + " / " + allAcs.size)
         nac += 1
 
-        val iteration = sid.predicates.values.filter(pred => pred.rules.exists(_.isRecursive)).map(pred => (pred, ptypesIterationParallel(ac, pred, ruleFilter = _.isRecursive)))
+        val iteration = sid.predicates.values.filter(pred => pred.rules.exists(_.isRecursive)).map(pred => (pred, ptypesIterationParallel(ac, pred, (p, a) => stateGet(p.name, a), ruleFilter = _.isRecursive)))
         for ((pred, newTypes) <- iteration) {
           if (!state.contains(pred.name)) state.put(pred.name, mutable.Map.empty)
 
