@@ -8,7 +8,8 @@ import at.forsyte.harrsh.seplog.{NullConst, Var}
   *
   * Represent a satisfiability query which consists of a GSL formula and a corresponding SID
   */
-case class Query(formula: GslFormula, sid: SID, fromEntailment: Boolean = false) {
+case class Query(formula: GslFormula, sid: SID, fromEntailment: Boolean = false, status: Option[Boolean] = None) {
+
   def isSatisfiable: Either[String, Boolean] =
     sid.toBtw match {
       case Left(l) => Left(l)

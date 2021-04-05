@@ -25,8 +25,6 @@ class EntailmentTest extends AnyFlatSpec {
     }
   }
 
-
-
   "Type computation" should "correctly decide easy entailments" in {
     val inputs: Seq[(GslFormula, GslFormula, SID, Boolean)] = Seq({
       val left = parseFormula("a -> <b, a> * a = c")

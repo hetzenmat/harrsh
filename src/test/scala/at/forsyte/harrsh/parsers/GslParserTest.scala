@@ -90,7 +90,7 @@ class GslParserTest extends AnyFlatSpec {
 
   it should "accept well-formed rules" in {
     val valid = List(
-      ("test(a,b) <= ∃c. a = c", Rule("test", Vector("a", "b"), SymbolicHeap(Seq("c"), Vector(), Vector(), Vector(Equality(a, _1)), Vector()))),
+      ("test(a) <= ∃c. a = c", Rule("test", Vector("a"), SymbolicHeap(Seq("c"), Vector(), Vector(), Vector(Equality(a, _1)), Vector()))),
       ("test_2 <= ∃a c. a = c", Rule("test_2", Seq(), SymbolicHeap(Seq("a", "c"), Vector(), Vector(), Vector(Equality(_1, _2)), Seq())))
     )
 
@@ -106,11 +106,7 @@ class GslParserTest extends AnyFlatSpec {
   it should "reject ill-formed rules" in {
     import org.parboiled2.Parser.DeliveryScheme.Throw
 
-    assertThrows[RuleException] {
-      println(new GslParser("test <= a != a").parseRule.run())
-    }
-
-    assertThrows[RuleException] {
+    assertThrows[IllegalArgumentException] {
       println(new GslParser("test(a,b,a) <= a -> <a,b>").parseRule.run())
     }
   }
@@ -123,6 +119,8 @@ class GslParserTest extends AnyFlatSpec {
         |} sid {
         |   lseg(l,t) <= l -> t
         |   lseg(l,t) <= ∃n. l -> n * lseg(n, t)
+        |} info {
+        |   status = true
         |}
         |""".stripMargin
 

@@ -24,7 +24,7 @@ import org.parboiled2._
 class GslParser(val input: ParserInput) extends Parser {
 
   def parseQuery: Rule1[Query] = rule {
-    _WhiteSpace ~ _FormulaSection ~ _SidSection ~ EOI ~> ((tuple: (GslFormula, Boolean), sid: SID) => Query(tuple._1, sid, tuple._2))
+    _WhiteSpace ~ _FormulaSection ~ _SidSection ~ _StatusSection ~ EOI ~> ((tuple: (GslFormula, Boolean), sid: SID, status: Option[Boolean]) => Query(tuple._1, sid, tuple._2, status))
   }
 
   def parseFormula: Rule1[GslFormula] = rule {
@@ -50,6 +50,12 @@ class GslParser(val input: ParserInput) extends Parser {
 
   private def _SidSection: Rule1[SID] = rule {
     ws("sid") ~ ws('{') ~ _Sid ~ ws('}')
+  }
+
+  private def _StatusSection: Rule1[Option[Boolean]] = rule {
+    optional {
+      ws("info") ~ ws('{') ~ ws("status") ~ ws('=') ~ (wsCapture("true") | wsCapture("false")) ~ ws('}') ~> ((m: String) => m.toBoolean)
+    }
   }
 
   /*_*/
@@ -203,6 +209,8 @@ class GslParser(val input: ParserInput) extends Parser {
   private def _WhiteSpace: Rule0 = rule(quiet(zeroOrMore(WhiteSpaceChar)))
 
   private def ws(s: String): Rule0 = rule(s ~ _WhiteSpace)
+
+  private def wsCapture(s: String): Rule1[String] = rule(capture(s) ~ _WhiteSpace)
 
   private def ws(c: Char): Rule0 = rule(c ~ _WhiteSpace)
 }
