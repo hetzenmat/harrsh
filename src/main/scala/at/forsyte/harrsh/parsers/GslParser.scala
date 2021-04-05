@@ -24,7 +24,7 @@ import org.parboiled2._
 class GslParser(val input: ParserInput) extends Parser {
 
   def parseQuery: Rule1[Query] = rule {
-    _WhiteSpace ~ _FormulaSection ~ _SidSection ~ _StatusSection ~ EOI ~> ((tuple: (GslFormula, Boolean), sid: SID, status: Option[Boolean]) => Query(tuple._1, sid, tuple._2, status))
+    zeroOrMore(_Comment) ~ _FormulaSection ~ _SidSection ~ _StatusSection ~ EOI ~> ((tuple: (GslFormula, Boolean), sid: SID, status: Option[Boolean]) => Query(tuple._1, sid, tuple._2, status))
   }
 
   def parseFormula: Rule1[GslFormula] = rule {
@@ -41,6 +41,10 @@ class GslParser(val input: ParserInput) extends Parser {
 
   def parseSID: Rule1[SID] = rule {
     _WhiteSpace ~ _Sid ~ EOI
+  }
+
+  private def _Comment: Rule0 = rule {
+    zeroOrMore(WhiteSpaceChar) ~ '#' ~ zeroOrMore(noneOf("\n")) ~ ws('\n')
   }
 
   private def _FormulaSection: Rule1[(GslFormula, Boolean)] = rule {

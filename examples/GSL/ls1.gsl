@@ -2,6 +2,8 @@ query {
     a -> b * ls(b) |= ls(a)
 } sid {
     ls(x1) <= x1 -> nil
-    ls(x1) <= ∃y.x1 -> (y) * ls(y)
-    ptr1(x1,x2) <= x1 -> x2
+    ls(x1) <= ∃y. x1 -> (y) * ls(y)
+}
+info {
+  status = true
 }

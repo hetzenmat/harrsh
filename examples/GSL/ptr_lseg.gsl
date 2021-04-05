@@ -1,0 +1,11 @@
+# A pointer is a list
+query {
+  x1 -> x2 |= lseg(x1, x2)
+}
+sid {
+  lseg(a, b) <= a -> b
+  lseg(a, b) <= ∃ c. a -> c * lseg(c, b)
+}
+info {
+  status = true
+}
