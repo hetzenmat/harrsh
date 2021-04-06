@@ -11,6 +11,19 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
+object PredicateTypes {
+  private val cached: mutable.Map[(String, AliasingConstraint, SID_btw), Set[PhiType]] = mutable.Map.empty
+
+  def contains(pred: String, ac: AliasingConstraint, sid: SID_btw): Boolean = cached.contains((pred, ac, sid))
+
+  def get(pred: String, ac: AliasingConstraint, sid: SID_btw): Set[PhiType] = cached((pred, ac, sid))
+
+  def put(pred: String, ac: AliasingConstraint, sid: SID_btw, types: Set[PhiType]): Set[PhiType] = {
+    cached.put((pred, ac, sid), types)
+    types
+  }
+}
+
 class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
   private type LookupFunction = (Predicate[SymbolicHeapBtw], AliasingConstraint) => Iterable[PhiType]
@@ -20,10 +33,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
   private val nonRecursiveTypes: mutable.Map[(SymbolicHeapBtw, AliasingConstraint), Set[PhiType]] = mutable.Map.empty
   private val finished: mutable.Set[(String, AliasingConstraint)] = mutable.Set.empty
   private var allFinished: Boolean = false
-  val queue: mutable.Queue[(AliasingConstraint, SID.Predicate[SymbolicHeapBtw])] = mutable.Queue.empty
-  val iterations: mutable.Map[(String, AliasingConstraint), Int] = mutable.Map.empty
   var changed: Boolean = false
-  //val predProgress: mutable.Map[(String, AliasingConstraint), Int] = mutable.Map.empty
 
   private def stateGet(s: String, ac: AliasingConstraint): mutable.Set[PhiType] = {
     state.getOrElse(s, mutable.Map.empty).getOrElse(ac, mutable.Set.empty)
@@ -53,11 +63,9 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
       //      val types = stateGet(pred.name, acExtendedRestricted)
       //      val types = unfoldLazy(it, pred, acExtendedRestricted)
-      val substMax = acExtended.domain.map(v => (v, acExtended.largestAlias(v))).toMap
 
-      val types = lookup(pred, acExtendedRestricted) //.map(_.substitute(substMax))
+      val types = lookup(pred, acExtendedRestricted)
 
-      //val typesExtended = PhiType.extend(acPlaceholders, acExtended, types, sid) TODO RECHEK
       val typesExtended = PhiType.extend(acExtendedRestricted, acExtended, types, sid)
 
       val substMax2 = ac.domain.map(v => (v, ac.largestAlias(v))).toMap
@@ -90,25 +98,9 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
   def unfoldLazy(it: Integer, pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
 
-
     if (it == 0) {
-
-      //      sid.predicates.values.filter(_.rules.exists(!_.isRecursive)).foreach { nonRecursive =>
-      //        val types = ptypesIterationParallel(ac, nonRecursive, (_, _) => Set.empty)
-      //        table(0).put((pred.name, ac), types)
-      //      }
-      //
-      //      sid.predicates.values.filter(_.rules.forall(!_.isRecursive)).foreach { recursive =>
-      //        val types = ptypesIterationParallel(ac, recursive, (p, a) => unfoldLazy(0, p, a))
-      //        table(0).put((pred.name, ac), types)
-      //      }
-      //
-      //      return table(0)((pred.name, ac))
-
       return Set.empty
     }
-
-    require(it > 0)
 
     if (!table.contains(it))
       table.put(it, mutable.Map.empty)
@@ -117,8 +109,6 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
     if (table(it).contains((pred.name, ac))) {
       val ret = table(it)((pred.name, ac))
-
-      //      println(ret)
 
       if (Utils.nonCanonical(ret, ac) || ret.exists(_.projections.exists(!_.isDelimited(sid)))) {
         ???
@@ -131,10 +121,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       for (rule <- pred.rules) {
         if (rule.isRecursive) {
           val discovered = ptypes(rule, ac, (p, a) => unfoldLazy(it - 1, p, a))
-          /*val discovered = ptypes(rule, ac, (p, a) => {
-            val i = predProgress.getOrElse((p.name, a), 0)
-            unfoldLazy(Math.max(i, it - 1), p, a)
-          })*/
+
           newTypes.addAll(discovered)
         } else {
           if (!nonRecursiveTypes.contains((rule, ac))) {
@@ -146,11 +133,8 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       }
 
       table(it).put((pred.name, ac), Set.from(newTypes))
-      //predProgress.updateWith((pred.name, ac))(Function.const(Some(it)))
 
       val ret = table(it)((pred.name, ac))
-
-      //      println(ret)
 
       if (Utils.nonCanonical(ret, ac) || ret.exists(_.projections.exists(!_.isDelimited(sid)))) {
         ???
@@ -164,6 +148,10 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
   }
 
   def getTypeLazy(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
+
+    if (PredicateTypes.contains(pred.name, ac, sid)) {
+      return PredicateTypes.get(pred.name, ac, sid)
+    }
 
     var current = 1
     while (table.contains(current) && table(current).contains((pred.name, ac))) {
@@ -184,17 +172,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
         streak = 0
     }
 
-
-//    result = table(current - 1)((pred.name, ac))
-
-//    if (result != unfoldLazy(current, pred, ac)) {
-//      print("")
-//    }
-//    require(result == unfoldLazy(current, pred, ac))
-
-    val r = result.flatMap(t => PhiType.from(t.projections.filter(_._isDelimited(sid)), sid, ac))
-
-    r
+    PredicateTypes.put(pred.name, ac, sid, result)
   }
 
   def getType(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
@@ -242,63 +220,6 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     override def toString: String = it + " " + ac + " " + pred
 
     override def compare(that: Elem): Int = that.it - it
-  }
-
-
-  /**
-    * DOES NOT WORK
-    */
-  private def unfold(acc: AliasingConstraint): Unit = {
-
-    computeNonRecursiveRules(acc)
-
-    val toRemove: mutable.Map[(String, AliasingConstraint), Int] = mutable.Map.empty
-
-    val pq: mutable.PriorityQueue[Elem] = mutable.PriorityQueue.empty
-
-    sid.predicates.values.foreach { pred =>
-      if (!finished.contains((pred.name, acc)))
-        pq.enqueue(new Elem(iterations.getOrElse((pred.name, acc), 0), acc, pred))
-    }
-
-    //    val queue: mutable.Queue[(AliasingConstraint, SymbolicHeapBtw)] = mutable.Queue(recursiveRules.map((ac, _)))
-    //queue.clear()
-    //queue.appendAll(sid.predicates.values.map((ac, _)))
-    while (pq.nonEmpty) {
-      println("=======")
-      pq.foreach(println)
-
-      val elem = pq.dequeue()
-
-      queue.clear()
-      val newTypes = ptypesIterationParallel(elem.ac, elem.pred, (p, a) => stateGet(p.name, a), _.isRecursive)
-      iterations.updateWith((elem.pred.name, elem.ac)) { case Some(value) => Some(value + 1)
-      case None => Some(0)
-      }
-
-      queue.foreach { case (constraint, value) =>
-        pq.enqueue(new Elem(iterations.getOrElse((value.name, constraint), 0), constraint, value))
-      }
-
-      if (!state.contains(elem.pred.name)) state.put(elem.pred.name, mutable.Map.empty)
-
-      if (state(elem.pred.name).contains(elem.ac)) {
-        val prevSize = state(elem.pred.name)(elem.ac).size
-        state(elem.pred.name)(elem.ac).addAll(newTypes)
-
-        val newSize = state(elem.pred.name)(elem.ac).size
-
-        if (newSize == prevSize && queue.isEmpty) {
-          finished.add((elem.pred.name, elem.ac))
-        }
-        else {
-          pq.enqueue(new Elem(elem.it + 1, elem.ac, elem.pred))
-        }
-      } else {
-        state(elem.pred.name).put(elem.ac, mutable.Set.from(newTypes))
-        pq.enqueue(new Elem(elem.it + 1, elem.ac, elem.pred))
-      }
-    }
   }
 
   private def unfold(): Unit = {

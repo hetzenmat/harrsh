@@ -366,8 +366,9 @@ object StackForestProjection {
     //      allRescopings(right, left).filter(_.isDelimited(sid)).flatMap(sfp => sfp.deriveGreedy /*.incl(sfp) TODO*/)
     //    val r = allRescopings(left, right).flatMap(sfp => sfp.derivableSet /*.incl(sfp) TODO*/)
 
-    (allRescopings(left, right) union allRescopings(right, left)).flatMap(sfp => sfp.derivableSet /*.incl(sfp) TODO*/)
+    //(allRescopings(left, right) union allRescopings(right, left)).flatMap(sfp => sfp.derivableSet /*.incl(sfp) TODO*/)
 
+    allRescopings(left, right).flatMap(sfp => sfp.derivableSet)
   }
 
   def allRescopings(left: StackForestProjection, right: StackForestProjection): Set[StackForestProjection] = {

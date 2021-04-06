@@ -4,6 +4,9 @@ import at.forsyte.harrsh.GSL.GslFormula.Atom.{PointsTo, PredicateCall}
 import at.forsyte.harrsh.seplog.{FreeVar, NullConst, Var}
 
 import scala.collection.SortedSet
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 /**
   * Created by Matthias Hetzenberger on 2021-02-13
@@ -73,9 +76,9 @@ object PhiType {
 
     //val itt = it.filterNot(prop)
 
-//    if (Utils.nonCanonicalSF(it, ac)) {
-//      println("largest")
-//    }
+    //    if (Utils.nonCanonicalSF(it, ac)) {
+    //      println("largest")
+    //    }
 
     if (it.exists(unsat)) {
       println("unsat")
@@ -97,15 +100,15 @@ object PhiType {
       ???
     }
 
-    if (it.isEmpty /*|| it.exists(!_.isDelimited(sid))*/) {
+    if (it.isEmpty /*|| it.exists(!_.isDelimited(sid))*/ ) {
       // TODO: Really return None if empty?
       None
     } else {
-//      val closure = it.flatMap(f => StackForestProjection.composition(f, new StackForestProjection(SortedSet.empty,
-//                                                                                                   SortedSet.empty,
-//                                                                                                   SortedSet.empty,
-//                                                                                                   Empty), sid))
-//                      .filter(_.isDelimited(sid))
+      //      val closure = it.flatMap(f => StackForestProjection.composition(f, new StackForestProjection(SortedSet.empty,
+      //                                                                                                   SortedSet.empty,
+      //                                                                                                   SortedSet.empty,
+      //                                                                                                   Empty), sid))
+      //                      .filter(_.isDelimited(sid))
       val closure = it.flatMap(_.impliedSet(sid)).filter(_.isDelimited(sid))
       Some(PhiType(SortedSet.from(closure)))
     }
@@ -130,9 +133,17 @@ object PhiType {
     }
   }
 
-  def composition(sid: SID_btw, left: Iterable[PhiType], right: Iterable[PhiType], ac: AliasingConstraint): Iterable[PhiType] =
-    (for (l <- left;
-          r <- right) yield composition(sid, l, r, ac)).flatten
+  def composition(sid: SID_btw, left: Iterable[PhiType], right: Iterable[PhiType], ac: AliasingConstraint): Iterable[PhiType] = {
+
+    val futures: Iterable[Future[Option[PhiType]]] =
+      for (l <- left;
+           r <- right) yield Future { composition(sid, l, r, ac) }
+
+    Await.result(Future.sequence(futures), Duration.Inf).flatten
+
+//    (for (l <- left;
+//          r <- right) yield composition(sid, l, r, ac)).flatten
+  }
 
   def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint, types: Iterable[PhiType], sid: SID_btw): Iterable[PhiType] = {
     require(x.length == y.length)

@@ -4,7 +4,7 @@ import at.forsyte.harrsh.main.HarrshLogging
 
 import scala.collection.mutable
 
-sealed trait HarrshCache[From,To] extends HarrshLogging {
+sealed trait HarrshCache[From, To] extends HarrshLogging {
 
   val description: String
 
@@ -16,7 +16,7 @@ sealed trait HarrshCache[From,To] extends HarrshLogging {
 
 }
 
-class UnboundedCache[From,CacheKey,To](override val description: String, toCacheKey: From => CacheKey, computeResult: From => To) extends HarrshCache[From, To] {
+class UnboundedCache[From, CacheKey, To](override val description: String, toCacheKey: From => CacheKey, computeResult: From => To) extends HarrshCache[From, To] {
 
   CacheRegistry.register(this)
 
@@ -24,7 +24,8 @@ class UnboundedCache[From,CacheKey,To](override val description: String, toCache
 
   private var hits: Int = 0
   private var misses: Int = 0
-  def stats: String = s"[Hits: $hits; Misses: $misses; Hit rate: ${hits / Math.max(1, hits+misses).toDouble}]"
+
+  def stats: String = s"[Hits: $hits; Misses: $misses; Hit rate: ${hits / Math.max(1, hits + misses).toDouble}]"
 
   override def apply(from: From): To = {
     val key = toCacheKey(from)
@@ -49,7 +50,7 @@ class UnboundedCache[From,CacheKey,To](override val description: String, toCache
 
 }
 
-class DeactivatedCache[From,CacheKey,To](override val description: String, toCacheKey: From => CacheKey, computeResult: From => To) extends HarrshCache[From, To] {
+class DeactivatedCache[From, CacheKey, To](override val description: String, toCacheKey: From => CacheKey, computeResult: From => To) extends HarrshCache[From, To] {
 
   override def apply(from: From): To = {
     computeResult(from)
