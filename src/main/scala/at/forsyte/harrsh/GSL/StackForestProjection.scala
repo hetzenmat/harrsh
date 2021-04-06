@@ -246,11 +246,9 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
     }
   }
 
-
 }
 
 object StackForestProjection {
-
 
   def fromPtrmodel(ac: AliasingConstraint, inst: RuleInstance, model: Map[Var, Int], pointsTo: PointsTo): StackForestProjection = {
     type PredCall = (String, Seq[Int])

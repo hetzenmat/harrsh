@@ -4,7 +4,7 @@ import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.SID.{Predicate, establishedResultSuccess}
 import at.forsyte.harrsh.heapautomata.instances.TrackingAutomata
 import at.forsyte.harrsh.refinement.RefinementAlgorithms
-import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Var}
+import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 import at.forsyte.harrsh.seplog.inductive.{PointsTo, PredCall, RichSid, SepLogAtom, SidFactory, SymbolicHeap => SH}
 
 /**
@@ -59,7 +59,7 @@ class SID private(val predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
                                         rules = Seq(SymbolicHeapBtw(pointsTo = Atom.PointsTo(argsV.head, argsV.tail)))))
           }
 
-          Right(SID_btw(predicatesWithPtrs, pointsToSizes))
+          Right(new SID_btw(predicatesWithPtrs))
         }
         else
           Left("SID does not satisfy establishment")
@@ -102,10 +102,12 @@ class SID private(val predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
 }
 
 
-case class SID_btw private(predicates: Map[String, SID.Predicate[SymbolicHeapBtw]], pointsToSizes: Set[Int]) {
-  require(pointsToSizes.forall(_ > 0))
+class SID_btw(val predicates: Map[String, SID.Predicate[SymbolicHeapBtw]]) {
 
   val freeVars: Set[Var] = predicates.values.flatMap(_.freeVars).toSet
+
+  val varBiMap: BiMap[Var, Int] = BiMap.from((NullConst, 0) +: freeVars.excl(NullConst).toSeq.sorted.zipWithIndex.map(t => (t._1, t._2 + 1)))
+  val predBiMap: BiMap[String, Int] = BiMap.from(predicates.keys.toSeq.sorted.zipWithIndex.map(t => (t._1, t._2 + 1)))
 
   def allRuleInstancesForPointsTo(from: Int, to: Seq[Int], range: Range): Iterable[(Map[Var, Int], RuleInstance)] = {
 
@@ -115,8 +117,14 @@ case class SID_btw private(predicates: Map[String, SID.Predicate[SymbolicHeapBtw
                           instantiation <- Utils.allSeqsWithRange(instantiationSize, range);
                           subst: Map[Var, Int] = (pred.args.map(FreeVar) ++ (1 to rule.quantifiedVars.length).map(BoundVar.apply)).zip(instantiation).toMap) yield (subst, rule.instantiate(pred, instantiation.take(pred.args.length), subst))
 
-
     candidates.collect({ case (v, Some(r@RuleInstance(_, _, from_, to_, _))) if from == from_ && to == to_ => (v, r) })
+  }
+
+  override def hashCode(): Int = predicates.hashCode()
+
+  override def equals(obj: Any): Boolean = obj match {
+    case value: SID_btw => predicates == value.predicates
+    case _ => false
   }
 }
 

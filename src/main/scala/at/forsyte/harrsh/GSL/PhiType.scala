@@ -116,8 +116,7 @@ object PhiType {
 
   def empty: PhiType = PhiType(SortedSet.from(Seq(new StackForestProjection(SortedSet.empty,
                                                                             SortedSet.empty,
-                                                                            SortedSet.empty,
-                                                                            Empty))))
+                                                                            SortedSet.empty))))
 
   def composition(sid: SID_btw, left: PhiType, right: PhiType, ac: AliasingConstraint): Option[PhiType] = {
     if (Utils.nonCanonical(left, ac) || Utils.nonCanonical(right, ac)) {
