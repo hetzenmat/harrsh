@@ -3,27 +3,38 @@ package at.forsyte.harrsh.GSL
 import at.forsyte.harrsh.GSL.Utils.SetUtils
 import at.forsyte.harrsh.seplog.Var
 
-import scala.collection.SortedSet
-import scala.collection.mutable.ListBuffer
+import scala.collection.{SortedSet, mutable}
 
-class AliasingConstraint(val partition: Seq[SortedSet[Var]], val eqClass: Map[Var, Int]) {
+class AliasingConstraint(val domain: Set[Var], val partition: IndexedSeq[SortedSet[Var]]) {
 
-  val domain: Set[Var] = eqClass.keySet
+  val eqClass: mutable.Map[Var, Int] = mutable.Map.empty
 
+  require(Utils.isSorted(partition)(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var]))
+
+  require(partition.flatten.toSet == domain)
+
+  // TODO: disable for performance
   require(domain.size == partition.map(_.size).sum, "Partition is not valid")
 
-  require(eqClass.values.forall(i => i >= 0 && i < partition.length), "Index out of bounds")
+  private def eqClassGet(v: Var): Int = {
+    require(domain(v))
 
-  require(eqClass.forall({ case (k, v) => partition(v).contains(k) }), "Equivalence mapping is not valid")
+    if (eqClass.contains(v))
+      eqClass(v)
+    else {
+      val index = partition.indexWhere(s => s.contains(v))
+      require(index >= 0)
+      eqClass.put(v, index)
 
-  def largestAlias(v: Var): Var = eqClass.get(v) match {
-    case Some(value) => partition(value).max
-    case None => v
+      index
+    }
   }
 
-  def apply(v: Var): SortedSet[Var] = partition(eqClass(v))
+  def largestAlias(v: Var): Var = this (v).max
 
-  def =:=(left: Var, right: Var): Boolean = eqClass(left) == eqClass(right)
+  def apply(v: Var): SortedSet[Var] = partition(eqClassGet(v))
+
+  def =:=(left: Var, right: Var): Boolean = eqClassGet(left) == eqClassGet(right)
 
   def =/=(left: Var, right: Var): Boolean = !(this =:= (left, right))
 
@@ -32,18 +43,21 @@ class AliasingConstraint(val partition: Seq[SortedSet[Var]], val eqClass: Map[Va
   }
 
   def allExtensions(v: Var): Set[AliasingConstraint] = {
+    require(!domain(v))
+
+    val newDomain = domain.incl(v)
+
     Set.from(partition.zipWithIndex.map({
-      case (set, idx) => new AliasingConstraint(partition.updated(idx, set.union(Set(v))), eqClass.updated(v, idx))
-    })).incl(new AliasingConstraint(partition :+ SortedSet(v), eqClass.updated(v, partition.size)))
+      case (set, idx) => new AliasingConstraint(newDomain, partition.updated(idx, set.union(Set(v))).sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var]))
+    })).incl(new AliasingConstraint(newDomain, (partition :+ SortedSet(v)).sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var])))
   }
 
   def rename(subst: Map[Var, Var]): AliasingConstraint = {
     require(domain.disjoint(subst.values.toSet))
 
     val newPartition = partition.map(ss => ss.map(v => subst.getOrElse(v, v)))
-    val newEqClass = eqClass.map(kv => (subst.getOrElse(kv._1, kv._1), kv._2))
 
-    new AliasingConstraint(newPartition, newEqClass)
+    new AliasingConstraint(domain.map(i => subst.getOrElse(i, i)), newPartition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var]))
   }
 
   def remove(vars: Seq[Var]): AliasingConstraint = vars.foldLeft(this) { (ac, x) => ac.remove(x) }
@@ -52,10 +66,9 @@ class AliasingConstraint(val partition: Seq[SortedSet[Var]], val eqClass: Map[Va
     require(domain.contains(x))
     require(this (x).size > 1)
 
-    val newEqClass = eqClass.filter(_._1 != x)
     val newPartition = partition.map(_.filter(_ != x))
 
-    new AliasingConstraint(newPartition, newEqClass)
+    new AliasingConstraint(domain.excl(x), newPartition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var]))
   }
 
   def reverseRenaming(x: Seq[Var], y: Seq[Var]): AliasingConstraint = {
@@ -67,7 +80,7 @@ class AliasingConstraint(val partition: Seq[SortedSet[Var]], val eqClass: Map[Va
 
     require(ySet.subsetOf(domain))
 
-    val yMap: Seq[(Int, Var)] = y.map(eqClass).zip(y)
+    val yMap: Seq[(Int, Var)] = y.map(eqClassGet).zip(y)
     val toChange = yMap.map(_._1).toSet
     val rel = x.zip(y)
 
@@ -80,56 +93,33 @@ class AliasingConstraint(val partition: Seq[SortedSet[Var]], val eqClass: Map[Va
         }
     })
 
-    val newEqClass = (eqClass.toSeq ++ rel.map({ case (xx, yy) => (xx, eqClass(yy)) })).toMap
-
-    new AliasingConstraint(newPartition, newEqClass)
+    new AliasingConstraint(domain.union(xSet), newPartition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var]))
   }
 
   def restricted(v: Set[Var]): AliasingConstraint = {
     val partitionRemoved = partition.map(_.intersect(v))
-    val eqClassFiltered = eqClass.filter(t => v.contains(t._1))
-
-    val emptySetsIndices = partitionRemoved.zipWithIndex.filter(_._1.isEmpty).map(_._2)
 
     val partitionFiltered = partitionRemoved.filter(_.nonEmpty)
 
-    val eqClassReordered = eqClassFiltered.map({ case (k, idx) =>
-      (k, idx - emptySetsIndices.count(_ < idx))
-    })
-
-    new AliasingConstraint(partitionFiltered, eqClassReordered)
+    new AliasingConstraint(domain.intersect(v), partitionFiltered.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var]))
   }
 
   override def hashCode(): Int = {
-
-    partition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var]).hashCode()
+    partition.hashCode()
   }
-
 
   override def equals(obj: Any): Boolean =
     obj match {
       case ac: AliasingConstraint =>
+        partition == ac.partition
 
-        partition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var]) == ac.partition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var])
-
-
-      //        if (domain != ac.domain) return false
-      //
-      //        for (varA <- domain;
-      //             varB <- domain) {
-      //          if ((this =:= (varA, varB)) != (ac =:= (varA, varB))) {
-      //            return false
-      //          }
-      //        }
-      //
-      //        true
       case _ => false
     }
 
   override def toString: String = {
 
     val part = partition.map(p => p.mkString("{", ", ", "}")).mkString(" ")
-    val eq = domain.toSeq.sorted.map(v => v + " -> " + eqClass(v)).mkString(" ")
+    val eq = domain.toSeq.sorted.map(v => v + " -> " + eqClassGet(v)).mkString(" ")
 
     part + " " + eq
   }
@@ -137,55 +127,23 @@ class AliasingConstraint(val partition: Seq[SortedSet[Var]], val eqClass: Map[Va
 
 object AliasingConstraint {
 
-  def allAliasingConstraints(vars: Set[Var]): LazyList[AliasingConstraint] = {
-    allPartitions(vars).map(eqClass => {
+  def allAliasingConstraints(vars: Set[Var]): LazyList[AliasingConstraint] =
+    allPartitions(vars).map(partition => new AliasingConstraint(vars, partition.map(v => SortedSet.from(v)).toIndexedSeq.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, Var])))
 
-      val buffer = ListBuffer.empty[collection.mutable.Set[Var]]
-      val map = collection.mutable.Map.empty[Var, Int]
-      eqClass.foreach({ case (variable, repr) =>
-
-        map.get(repr) match {
-          case Some(index) =>
-            buffer(index).add(variable)
-            map.update(variable, index)
-          case None =>
-            buffer.addOne(collection.mutable.Set(variable, repr))
-            map.update(repr, buffer.size - 1)
-            map.update(variable, buffer.size - 1)
-        }
-      })
-
-      new AliasingConstraint(buffer.map(s => SortedSet.from(s)).toSeq, map.toMap)
-    })
-  }
-
-  def mapRepresentationToSet[A](partition: Map[A, A]): Set[Set[A]] = {
-    partition.foldLeft(Set(): Set[Set[A]]) { case (set, (k, v)) =>
-      set.find(_.contains(v)) match {
-        case None => set.incl(Set(k, v))
-        case Some(eq) => set.excl(eq).incl(eq.incl(k))
-      }
-    }
-  }
-
-  def allPartitions[A](set: Set[A])(implicit ordering: Ordering[A]): LazyList[Map[A, A]] = {
-
-    def help(seq: Seq[A]): LazyList[Map[A, A]] = {
+  def allPartitions[A](set: Set[A])(implicit ordering: Ordering[A]): LazyList[Set[Set[A]]] = {
+    def aux(seq: Seq[A]): LazyList[Set[Set[A]]] = {
       seq match {
-        case Seq() => LazyList(Map.empty)
-        case Seq(e) => LazyList(Map(e -> e))
+        case Seq() => LazyList(Set(Set.empty))
+        case Seq(e) => LazyList(Set(Set(e)))
         case Seq(head, tail@_*) =>
-          // first is < than all in tail
-          val partitions = help(tail)
-          partitions.flatMap(map => {
-            val first = map.updated(head, head)
+          val partitions = aux(tail)
 
-            LazyList(first) ++ map.values.toSet.map((e: A) => map.updated(head, e))
+          partitions.flatMap(sets => {
+            LazyList(sets.incl(Set(head))) ++ sets.map((e: Set[A]) => sets.excl(e).incl(e.incl(head)))
           })
       }
     }
 
-    val ordered = set.toSeq.sorted
-    help(ordered)
+    aux(set.toSeq.sorted)
   }
 }

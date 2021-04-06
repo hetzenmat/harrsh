@@ -33,10 +33,10 @@ object Utils {
     case _ => LazyList.from(range.flatMap(i => allSeqsWithRange(length - 1, range).map(i +: _)))
   }
 
-  def isSorted[A](a: Seq[A])(implicit evidence: A => Ordered[A]): Boolean = {
+  def isSorted[A](a: Seq[A])(implicit evidence: Ordering[A]): Boolean = {
     if (a.isEmpty)
       true
     else
-      a.zip(a.tail).forall(t => t._1 <= t._2)
+      a.zip(a.tail).forall(t => evidence.lteq(t._1, t._2))
   }
 }

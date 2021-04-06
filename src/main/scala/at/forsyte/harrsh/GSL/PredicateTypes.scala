@@ -61,8 +61,6 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
       val acExtendedRestricted = acExtended.restricted((x union parameters.toSet).incl(NullConst))
 
-      //      val types = stateGet(pred.name, acExtendedRestricted)
-      //      val types = unfoldLazy(it, pred, acExtendedRestricted)
 
       val types = lookup(pred, acExtendedRestricted)
 
@@ -73,7 +71,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
       //r.map(_.substitute(substMax))
       if (Utils.nonCanonical(r, ac)) {
-        println("sdf")
+        ???
       }
       r
   }

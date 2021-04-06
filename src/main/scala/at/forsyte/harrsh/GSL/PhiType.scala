@@ -18,11 +18,6 @@ case class PhiType private(projections: SortedSet[StackForestProjection]) extend
                                                        .map(_.rootpred)
                                                        .map(c => c.args(sid.predicates(c.pred).predrootIndex)).asInstanceOf[Set[FreeVar]]
 
-  def filterDUSH(sid: SID_btw, ac: AliasingConstraint): PhiType = {
-    println()
-    PhiType.from(projections.unsorted.filter(_.isDUSH(sid)), sid, ac).get
-  }
-
   def freeVars: SortedSet[FreeVar] = projections.flatMap(_.freeVars)
 
   def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint, sid: SID_btw): PhiType = {
