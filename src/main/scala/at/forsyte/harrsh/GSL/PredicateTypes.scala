@@ -12,13 +12,13 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 object PredicateTypes {
-  private val cached: mutable.Map[(String, AliasingConstraint, SID_btw), Set[PhiType]] = mutable.Map.empty
+  private val cached: mutable.Map[(String, AliasingConstraint[Var], SID_btw), Set[PhiType]] = mutable.Map.empty
 
-  def contains(pred: String, ac: AliasingConstraint, sid: SID_btw): Boolean = cached.contains((pred, ac, sid))
+  def contains(pred: String, ac: AliasingConstraint[Var], sid: SID_btw): Boolean = cached.contains((pred, ac, sid))
 
-  def get(pred: String, ac: AliasingConstraint, sid: SID_btw): Set[PhiType] = cached((pred, ac, sid))
+  def get(pred: String, ac: AliasingConstraint[Var], sid: SID_btw): Set[PhiType] = cached((pred, ac, sid))
 
-  def put(pred: String, ac: AliasingConstraint, sid: SID_btw, types: Set[PhiType]): Set[PhiType] = {
+  def put(pred: String, ac: AliasingConstraint[Var], sid: SID_btw, types: Set[PhiType]): Set[PhiType] = {
     cached.put((pred, ac, sid), types)
     types
   }
@@ -26,20 +26,20 @@ object PredicateTypes {
 
 class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
-  private type LookupFunction = (Predicate[SymbolicHeapBtw], AliasingConstraint) => Iterable[PhiType]
+  private type LookupFunction = (Predicate[SymbolicHeapBtw], AliasingConstraint[Var]) => Iterable[PhiType]
 
-  private val state: mutable.Map[String, mutable.Map[AliasingConstraint, mutable.Set[PhiType]]] = mutable.Map.empty
-  private val table: mutable.Map[Int, mutable.Map[(String, AliasingConstraint), Set[PhiType]]] = mutable.Map.empty
-  private val nonRecursiveTypes: mutable.Map[(SymbolicHeapBtw, AliasingConstraint), Set[PhiType]] = mutable.Map.empty
-  private val finished: mutable.Set[(String, AliasingConstraint)] = mutable.Set.empty
+  private val state: mutable.Map[String, mutable.Map[AliasingConstraint[Var], mutable.Set[PhiType]]] = mutable.Map.empty
+  private val table: mutable.Map[Int, mutable.Map[(String, AliasingConstraint[Var]), Set[PhiType]]] = mutable.Map.empty
+  private val nonRecursiveTypes: mutable.Map[(SymbolicHeapBtw, AliasingConstraint[Var]), Set[PhiType]] = mutable.Map.empty
+  private val finished: mutable.Set[(String, AliasingConstraint[Var])] = mutable.Set.empty
   private var allFinished: Boolean = false
   var changed: Boolean = false
 
-  private def stateGet(s: String, ac: AliasingConstraint): mutable.Set[PhiType] = {
+  private def stateGet(s: String, ac: AliasingConstraint[Var]): mutable.Set[PhiType] = {
     state.getOrElse(s, mutable.Map.empty).getOrElse(ac, mutable.Set.empty)
   }
 
-  def ptypes(atom: Atom, ac: AliasingConstraint, lookup: LookupFunction): Iterable[PhiType] = atom match {
+  def ptypes(atom: Atom, ac: AliasingConstraint[Var], lookup: LookupFunction): Iterable[PhiType] = atom match {
     case e: Equality => TypeComputation.equality(e, ac)
     case d: DisEquality => TypeComputation.disEquality(d, ac)
     case p: PointsTo => TypeComputation.pointsTo(p, ac, sid)
@@ -61,27 +61,25 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
       val acExtendedRestricted = acExtended.restricted((x union parameters.toSet).incl(NullConst))
 
-
       val types = lookup(pred, acExtendedRestricted)
 
       val typesExtended = PhiType.extend(acExtendedRestricted, acExtended, types, sid)
 
-      val substMax2 = ac.domain.map(v => (v, ac.largestAlias(v))).toMap
-      val r = PhiType.rename(parameters ++ parametersPlaceholders.map(_._2), args.asInstanceOf[Seq[FreeVar]] ++ parametersPlaceholders.map(_._1), ac, typesExtended, sid).map(_.substitute(substMax2))
+      val substMax = ac.domain.map(v => (v, AliasingConstraint.largestAlias(ac, v))).toMap
+      val r = PhiType.rename(parameters ++ parametersPlaceholders.map(_._2), args.asInstanceOf[Seq[FreeVar]] ++ parametersPlaceholders.map(_._1), ac, typesExtended, sid).map(_.substitute(substMax))
 
-      //r.map(_.substitute(substMax))
       if (Utils.nonCanonical(r, ac)) {
         ???
       }
       r
   }
 
-  def ptypes(atoms: Seq[Atom], ac: AliasingConstraint, lookup: LookupFunction): Iterable[PhiType] = atoms match {
+  def ptypes(atoms: Seq[Atom], ac: AliasingConstraint[Var], lookup: LookupFunction): Iterable[PhiType] = atoms match {
     case atom +: Seq() => ptypes(atom, ac, lookup)
     case head +: rest => PhiType.composition(sid, ptypes(head, ac, lookup), ptypes(rest, ac, lookup), ac)
   }
 
-  def ptypes(sh: SymbolicHeapBtw, ac: AliasingConstraint, lookup: LookupFunction): Iterable[PhiType] =
+  def ptypes(sh: SymbolicHeapBtw, ac: AliasingConstraint[Var], lookup: LookupFunction): Iterable[PhiType] =
     if (sh.quantifiedVars.nonEmpty) {
       val fresh = Var.freshFreeVar(ac.domain.union(sh.freeVars))
       val allExtensions = ac.allExtensions(fresh)
@@ -94,7 +92,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     } else ptypes(sh.atoms, ac, lookup)
 
 
-  def unfoldLazy(it: Integer, pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
+  def unfoldLazy(it: Integer, pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint[Var]): Set[PhiType] = {
 
     if (it == 0) {
       return Set.empty
@@ -145,7 +143,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     }
   }
 
-  def getTypeLazy(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
+  def getTypeLazy(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint[Var]): Set[PhiType] = {
 
     if (PredicateTypes.contains(pred.name, ac, sid)) {
       return PredicateTypes.get(pred.name, ac, sid)
@@ -173,13 +171,13 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     PredicateTypes.put(pred.name, ac, sid, result)
   }
 
-  def getType(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint): Set[PhiType] = {
+  def getType(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint[Var]): Set[PhiType] = {
     if (!allFinished) unfold()
 
     state(pred.name)(ac).toSet
   }
 
-  private def ptypesIterationSequential(ac: AliasingConstraint, pred: Predicate[SymbolicHeapBtw]): Set[PhiType] = {
+  private def ptypesIterationSequential(ac: AliasingConstraint[Var], pred: Predicate[SymbolicHeapBtw]): Set[PhiType] = {
     val newTypes = mutable.Set.empty[PhiType]
     for (rule <- pred.rules) {
       val discovered = ptypes(rule, ac, (p, a) => stateGet(p.name, a))
@@ -190,7 +188,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     newTypes.toSet
   }
 
-  private def ptypesIterationParallel(ac: AliasingConstraint,
+  private def ptypesIterationParallel(ac: AliasingConstraint[Var],
                                       pred: Predicate[SymbolicHeapBtw],
                                       lookup: LookupFunction,
                                       ruleFilter: SymbolicHeapBtw => Boolean = Function.const(true)): Set[PhiType] = {
@@ -201,7 +199,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     Await.result(Future.sequence(futures), Duration.Inf).flatten.toSet
   }
 
-  private def computeNonRecursiveRules(ac: AliasingConstraint): Unit = {
+  private def computeNonRecursiveRules(ac: AliasingConstraint[Var]): Unit = {
     for (pred <- sid.predicates.values;
          rule <- pred.rules if !rule.isRecursive) {
       val newTypes = ptypesIterationParallel(ac, pred, (p, a) => stateGet(p.name, a), ruleFilter = !_.isRecursive)
@@ -213,7 +211,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     }
   }
 
-  class Elem(val it: Int, val ac: AliasingConstraint, val pred: Predicate[SymbolicHeapBtw]) extends Ordered[Elem] {
+  class Elem(val it: Int, val ac: AliasingConstraint[Var], val pred: Predicate[SymbolicHeapBtw]) extends Ordered[Elem] {
 
     override def toString: String = it + " " + ac + " " + pred
 

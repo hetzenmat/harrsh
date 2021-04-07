@@ -23,6 +23,11 @@ class EntailmentTest extends AnyFlatSpec {
       case Left(value) => fail(value)
       case Right(value) => assert(value)
     }
+
+    Query.fromEntailment(parseFormula("a -> <b, c> * b -> <null, null> * c -> (a, null)"), parseFormula("btree(a)"), SIDs.btree).entailmentHolds match {
+      case Left(value) => fail(value)
+      case Right(value) => assert(!value)
+    }
   }
 
   "Type computation" should "correctly decide easy entailments" in {

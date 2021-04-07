@@ -31,7 +31,7 @@ class AliasingConstraintTest extends AnyFlatSpec {
       assert(ac =:= (v, v))
     }
 
-    assert(ac.largestAlias(b) == c)
+    assert(AliasingConstraint.largestAlias(ac.asInstanceOf[AliasingConstraint[Var]], b) == c)
 
     for (e1 <- Seq(a, b, c);
          e2 <- Seq(a, b, c)) {

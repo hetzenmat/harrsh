@@ -61,6 +61,7 @@ object GslFormula {
       override val predicateCalls: Set[String] = Set.empty
       override val varSeq: Seq[Var] = Seq(left, right)
 
+      def toEquality: Equality = Equality(left, right)
     }
 
     final case class PointsTo(from: Var, to: Seq[Var]) extends Atom {
@@ -68,7 +69,7 @@ object GslFormula {
 
       override def _substitute(substitution: Map[Var, Var]): PointsTo = PointsTo(substitution.getOrElse(from, from), to.map(v => substitution.getOrElse(v, v)))
 
-      def ptrmodel(ac: AliasingConstraint): Map[Var, Int] =
+      def ptrmodel(ac: AliasingConstraint[Var]): Map[Var, Int] =
         vars.foldLeft(Map(NullConst.asInstanceOf[Var] -> 0)) { (map, v) =>
           if (ac.domain.contains(v)) {
             if (ac =:= (v, NullConst))
