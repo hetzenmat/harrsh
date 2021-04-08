@@ -1,24 +1,43 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.seplog.{NullConst, Var}
+import at.forsyte.harrsh.seplog.Var
 
-import scala.collection.immutable.{AbstractSeq, LinearSeq}
-import scala.xml.NodeSeq
 
 object Utils {
+
+  private def _debugRequire(cond: Boolean): Unit = _debugRequireMsg(cond, "")
+
+  private def _debugRequireMsg(cond: Boolean, message: String): Unit = {
+    if (!cond) {
+      throw new IllegalStateException(message)
+    }
+  }
+
+  var debugRequireMsg: (Boolean, String) => Unit = _debugRequireMsg
+  var debugRequire: Boolean => Unit = _debugRequire
+
+  def enableDebugRequire(): Unit = {
+    debugRequireMsg = _debugRequireMsg
+    debugRequire = _debugRequire
+  }
+
+  def disableDebugRequire(): Unit = {
+    debugRequireMsg = (_, _) => ()
+    debugRequire = _ => ()
+  }
 
   implicit class SetUtils[A](val s: Set[A]) {
     def disjoint(other: Set[A]): Boolean = s.intersect(other).isEmpty
   }
 
-  def nonCanonical(t: Iterable[PhiType], ac: AliasingConstraint[Var]): Boolean =
-    t.exists(t => nonCanonicalSF(t.projections, ac))
+  def isCanonical(t: Iterable[PhiType], ac: AliasingConstraint[Var]): Boolean =
+    t.forall(t => isCanonicalSF(t.projections, ac))
 
-  def nonCanonical(t: PhiType, ac: AliasingConstraint[Var]): Boolean =
-    nonCanonicalSF(t.projections, ac)
+  def isCanonical(t: PhiType, ac: AliasingConstraint[Var]): Boolean =
+    isCanonicalSF(t.projections, ac)
 
-  def nonCanonicalSF(s: Iterable[StackForestProjection], ac: AliasingConstraint[Var]): Boolean =
-    s.exists(sf => sf.freeVars.asInstanceOf[Set[Var]].exists(v => AliasingConstraint.largestAlias(ac, v) != v))
+  def isCanonicalSF(s: Iterable[StackForestProjection], ac: AliasingConstraint[Var]): Boolean =
+    s.forall(sf => sf.freeVars.asInstanceOf[Set[Var]].forall(v => AliasingConstraint.largestAlias(ac, v) == v))
 
   def compareLexicographically[A](a: Seq[A], b: Seq[A])(implicit evidence: A => Ordered[A]): Int = {
     val res = a.zip(b).collectFirst({

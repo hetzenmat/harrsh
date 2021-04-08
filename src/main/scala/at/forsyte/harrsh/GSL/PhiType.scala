@@ -48,82 +48,26 @@ object PhiType {
 
   def from(it: Iterable[StackForestProjection], sid: SID_btw, ac: AliasingConstraint[Var]): Option[PhiType] = {
 
-    /*val itSubst = it.map(sf => {
-      val subst: Map[Var, Var] = sf.freeVars.map(v => (v, ac.largestAlias(v))).toMap
-      sf.substitute(subst)
-    })*/
+    Utils.debugRequire(it.forall(_.isDelimited(sid)))
 
-    def prop(sf: StackForestProjection): Boolean = {
-      val vars = sf.formula.unsorted.map(_.rootpred).map({ case PredicateCall(pred, args) =>
-        val p = sid.predicates(pred)
-        args(p.predrootIndex)
-      }).toSet
-
-      vars.size < sf.formula.size
-    }
-
-    def unsat(sf: StackForestProjection): Boolean = {
-      val su: Map[Var, Var] = sf.freeVars.map(v => (v, AliasingConstraint.largestAlias(ac, v))).toMap
-      val sf2 = sf.substitute(su)
-
-      prop(sf2)
-    }
-
-    //val itt = it.filterNot(prop)
-
-    //    if (Utils.nonCanonicalSF(it, ac)) {
-    //      println("largest")
-    //    }
-
-    if (it.exists(unsat)) {
-      println("unsat")
-    }
-
-    if (it.exists(prop)) {
-      println("here")
-      //      // TODO Completeness?
-      //      None
-    }
-
-    //val it2 = it.filter(sf => sf.formula.forall(tp => !tp.allholepreds.contains(tp.rootpred)))
-
-    if (it.isEmpty) {
-      print("")
-    }
-
-    if (it.exists(!_.isDelimited(sid))) {
-      ???
-    }
 
     if (it.isEmpty /*|| it.exists(!_.isDelimited(sid))*/ ) {
       // TODO: Really return None if empty?
       None
     } else {
-      //      val closure = it.flatMap(f => StackForestProjection.composition(f, new StackForestProjection(SortedSet.empty,
-      //                                                                                                   SortedSet.empty,
-      //                                                                                                   SortedSet.empty,
-      //                                                                                                   Empty), sid))
-      //                      .filter(_.isDelimited(sid))
-      //val closure = it ++ it.flatMap(_.impliedSet(sid)).filter(_.isDelimited(sid))
-
-      //      val a = it.flatMap(sf => StackForestProjection.composition(sf, new StackForestProjection(SortedSet.empty,
-      //                                                                                       SortedSet.empty,
-      //                                                                                       SortedSet.empty), sid))
-
-      Some(PhiType(SortedSet.from(it.flatMap(_.impliedSet(sid))))) //.filter(_.isDelimited(sid)))))
+      Some(PhiType(SortedSet.from(it.flatMap(_.impliedSet(sid)))))
     }
   }
 
-  def empty: PhiType = PhiType(SortedSet.from(Seq(new StackForestProjection(SortedSet.empty,
-                                                                            SortedSet.empty,
-                                                                            SortedSet.empty))))
+  def empty: PhiType = PhiType(SortedSet.from(Seq(StackForestProjection.empty)))
 
   def composition(sid: SID_btw, left: PhiType, right: PhiType, ac: AliasingConstraint[Var]): Option[PhiType] = {
-    if (Utils.nonCanonical(left, ac) || Utils.nonCanonical(right, ac)) {
-      println("sdf")
-    }
-    if ((left.alloced(sid) /*.map(v => ac.largestAlias(v))*/ intersect right.alloced(sid)).isEmpty) {
+    Utils.debugRequire(Utils.isCanonical(left, ac))
+    Utils.debugRequire(Utils.isCanonical(right, ac))
 
+    if ((left.alloced(sid) intersect right.alloced(sid)).isEmpty) {
+
+      // TODO: parallel
       val projections = for (phi1 <- left.projections.unsorted;
                              phi2 <- right.projections.unsorted) yield StackForestProjection.composition(phi1, phi2, sid)
       PhiType.from(projections.flatten.filter(_.isDelimited(sid)), sid, ac)

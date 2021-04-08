@@ -68,9 +68,8 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       val substMax = ac.domain.map(v => (v, AliasingConstraint.largestAlias(ac, v))).toMap
       val r = PhiType.rename(parameters ++ parametersPlaceholders.map(_._2), args.asInstanceOf[Seq[FreeVar]] ++ parametersPlaceholders.map(_._1), ac, typesExtended, sid).map(_.substitute(substMax))
 
-      if (Utils.nonCanonical(r, ac)) {
-        ???
-      }
+      Utils.debugRequire(Utils.isCanonical(r, ac))
+
       r
   }
 
@@ -106,9 +105,8 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     if (table(it).contains((pred.name, ac))) {
       val ret = table(it)((pred.name, ac))
 
-      if (Utils.nonCanonical(ret, ac) || ret.exists(_.projections.exists(!_.isDelimited(sid)))) {
-        ???
-      }
+      Utils.debugRequire(Utils.isCanonical(ret, ac))
+      Utils.debugRequire(ret.flatMap(_.projections).forall(_.isDelimited(sid)))
 
       ret
     } else {
@@ -132,9 +130,8 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
       val ret = table(it)((pred.name, ac))
 
-      if (Utils.nonCanonical(ret, ac) || ret.exists(_.projections.exists(!_.isDelimited(sid)))) {
-        ???
-      }
+      Utils.debugRequire(Utils.isCanonical(ret, ac))
+      Utils.debugRequire(ret.flatMap(_.projections).forall(_.isDelimited(sid)))
 
       if (ret.size > unfoldLazy(it - 1, pred, ac).size)
         changed = true

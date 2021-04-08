@@ -26,35 +26,35 @@ class StackForestProjectionTest extends AnyFlatSpec {
   "StackForestProjection" should "correctly compute all rescopings and composition for Example 7.33 (first part)" in {
     val (x1, x2, x3) = (FreeVar("x1"), FreeVar("x2"), FreeVar("x3"))
 
-    val left = StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(P("ls")(x2, x3)), P("ls")(x1, x3))))
-    val right = StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(), P("ls")(x2, x3))))
+    val left = new StackForestProjection(SortedSet(), SortedSet(), SortedSet(TreeProjection(Seq(P("ls")(x2, x3)), P("ls")(x1, x3))))
+    val right = new StackForestProjection(SortedSet(), SortedSet(), SortedSet(TreeProjection(Seq(), P("ls")(x2, x3))))
 
-    assert(StackForestProjection.composition(left, right, SIDs.toBtw(SIDs.ls)).contains(StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(), P("ls")(x1, x3))))))
+    assert(StackForestProjection.composition(left, right, SIDs.toBtw(SIDs.ls)).contains(new StackForestProjection(SortedSet(), SortedSet(), SortedSet(TreeProjection(Seq(), P("ls")(x1, x3))))))
   }
 
   it should "correctly compute all rescopings and composition for Example 7.33 (second part)" in {
     val (x1, x2, x3) = (FreeVar("x1"), FreeVar("x2"), FreeVar("x3"))
 
-    val left = StackForestProjection.from(SortedSet(), SortedSet(_1), Seq(TreeProjection(Seq(P("ls")(x2, _1)), P("ls")(x1, _1))))
-    val right = StackForestProjection.from(SortedSet(), SortedSet(_1), Seq(TreeProjection(Seq(P("ls")(x3, _1)), P("ls")(x2, _1))))
+    val left = new StackForestProjection(SortedSet(), SortedSet(_1), SortedSet(TreeProjection(Seq(P("ls")(x2, _1)), P("ls")(x1, _1))))
+    val right = new StackForestProjection(SortedSet(), SortedSet(_1), SortedSet(TreeProjection(Seq(P("ls")(x3, _1)), P("ls")(x2, _1))))
 
-    assert(StackForestProjection.composition(left, right, SIDs.toBtw(SIDs.ls)).contains(StackForestProjection.from(SortedSet(), SortedSet(_1), Seq(TreeProjection(Seq(P("ls")(x3, _1)), P("ls")(x1, _1))))))
+    assert(StackForestProjection.composition(left, right, SIDs.toBtw(SIDs.ls)).contains(new StackForestProjection(SortedSet(), SortedSet(_1), SortedSet(TreeProjection(Seq(P("ls")(x3, _1)), P("ls")(x1, _1))))))
   }
 
   it should "correctly compute all rescopings and composition for Example 7.34 (first part)" in {
 
-    val left = StackForestProjection.from(SortedSet(_1),
-                                          SortedSet(),
-                                          Seq(TreeProjection(Seq(P("lseg")(y, _1)), P("cyclic")(x, y, z)),
-                                              TreeProjection(Seq(), P("lseg")(z, _1))))
+    val left = new StackForestProjection(SortedSet(_1),
+                                         SortedSet(),
+                                         SortedSet(TreeProjection(Seq(P("lseg")(y, _1)), P("cyclic")(x, y, z)),
+                                                   TreeProjection(Seq(), P("lseg")(z, _1))))
 
-    val right = StackForestProjection.from(SortedSet(),
-                                           SortedSet(_1),
-                                           Seq(TreeProjection(Seq(P("lseg")(z, _1)), P("lseg")(y, _1))))
+    val right = new StackForestProjection(SortedSet(),
+                                          SortedSet(_1),
+                                          SortedSet(TreeProjection(Seq(P("lseg")(z, _1)), P("lseg")(y, _1))))
 
-    val result = StackForestProjection.from(SortedSet(_1),
-                                            SortedSet(),
-                                            left.formula ++ right.formula)
+    val result = new StackForestProjection(SortedSet(_1),
+                                           SortedSet(),
+                                           left.formula ++ right.formula)
 
     val allRescopings = StackForestProjection.allRescopings(left, right)
     assert(allRescopings.contains(result))
@@ -71,15 +71,15 @@ class StackForestProjectionTest extends AnyFlatSpec {
     val p2 = P("p2")(x3, x2, _1)
     val ptr = P("ptr")(x2, _1)
 
-    val sf1 = StackForestProjection.from(SortedSet(_1), SortedSet(),
-                                         Seq(TreeProjection(Seq(p2), p1),
-                                             TreeProjection(Seq(), ptr)))
-    val sf2 = StackForestProjection.from(SortedSet(), SortedSet(_1),
-                                         Seq(TreeProjection(Seq(ptr), p2)))
+    val sf1 = new StackForestProjection(SortedSet(_1), SortedSet(),
+                                        SortedSet(TreeProjection(Seq(p2), p1),
+                                                  TreeProjection(Seq(), ptr)))
+    val sf2 = new StackForestProjection(SortedSet(), SortedSet(_1),
+                                        SortedSet(TreeProjection(Seq(ptr), p2)))
 
-    val result = StackForestProjection.from(SortedSet(),
-                                            SortedSet(),
-                                            Seq(TreeProjection(Seq(), p1)))
+    val result = new StackForestProjection(SortedSet(),
+                                           SortedSet(),
+                                           SortedSet(TreeProjection(Seq(), p1)))
 
     assert(StackForestProjection.composition(sf1, sf2, SIDs.toBtw(SID.buildSID(Seq.empty))).contains(result))
   }
@@ -90,40 +90,40 @@ class StackForestProjectionTest extends AnyFlatSpec {
     val ptr_bc = P("ptr3")(b, nil, nil, c)
     val ptr_cr = P("ptr3")(c, nil, nil, _1)
 
-    val left = StackForestProjection.from(SortedSet(_1),
-                                          SortedSet(),
-                                          Seq(TreeProjection(Seq(tll_abc), tll_xyz),
-                                              TreeProjection(Seq(), ptr_bc),
-                                              TreeProjection(Seq(), ptr_cr)))
+    val left = new StackForestProjection(SortedSet(_1),
+                                         SortedSet(),
+                                         SortedSet(TreeProjection(Seq(tll_abc), tll_xyz),
+                                                   TreeProjection(Seq(), ptr_bc),
+                                                   TreeProjection(Seq(), ptr_cr)))
 
-    val right = StackForestProjection.from(SortedSet(),
-                                           SortedSet(_1),
-                                           Seq(TreeProjection(Seq(ptr_bc, ptr_cr), tll_abc)))
+    val right = new StackForestProjection(SortedSet(),
+                                          SortedSet(_1),
+                                          SortedSet(TreeProjection(Seq(ptr_bc, ptr_cr), tll_abc)))
 
-    val result = StackForestProjection.from(SortedSet(_1),
-                                            SortedSet(),
-                                            left.formula ++ right.formula)
+    val result = new StackForestProjection(SortedSet(_1),
+                                           SortedSet(),
+                                           left.formula ++ right.formula)
 
     assert(StackForestProjection.allRescopings(left, right).contains(result))
 
-    assert(StackForestProjection.composition(left, right, SIDs.toBtw(SID.buildSID(Seq.empty))).contains(StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(), tll_xyz)))))
+    assert(StackForestProjection.composition(left, right, SIDs.toBtw(SID.buildSID(Seq.empty))).contains(new StackForestProjection(SortedSet(), SortedSet(), SortedSet(TreeProjection(Seq(), tll_xyz)))))
   }
 
   it should "correctly compute all the composition for Example 7.36" in {
 
     val (x1, x2, x3) = (FreeVar("x1"), FreeVar("x2"), FreeVar("x3"))
 
-    val left = StackForestProjection.from(SortedSet(),
+    val left = new StackForestProjection(SortedSet(),
+                                         SortedSet(_1),
+                                         SortedSet(TreeProjection(Seq(P("even")(x2, _1)), P("odd")(x1, _1))))
+
+    val right = new StackForestProjection(SortedSet(),
                                           SortedSet(_1),
-                                          Seq(TreeProjection(Seq(P("even")(x2, _1)), P("odd")(x1, _1))))
+                                          SortedSet(TreeProjection(Seq(P("odd")(x3, _1)), P("even")(x2, _1))))
 
-    val right = StackForestProjection.from(SortedSet(),
+    val result = new StackForestProjection(SortedSet(),
                                            SortedSet(_1),
-                                           Seq(TreeProjection(Seq(P("odd")(x3, _1)), P("even")(x2, _1))))
-
-    val result = StackForestProjection.from(SortedSet(),
-                                            SortedSet(_1),
-                                            Seq(TreeProjection(Seq(P("odd")(x3, _1)), P("odd")(x1, _1))))
+                                           SortedSet(TreeProjection(Seq(P("odd")(x3, _1)), P("odd")(x1, _1))))
 
     assert(StackForestProjection.composition(left, right, SIDs.toBtw(SID.buildSID(Seq.empty))).contains(result))
   }
@@ -133,15 +133,15 @@ class StackForestProjectionTest extends AnyFlatSpec {
       case Left(_) => fail()
       case Right(sid) =>
 
-        val sfp1 = StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(P("my_ptr")(a, b)), P("my_ptr")(b, c))))
+        val sfp1 = new StackForestProjection(SortedSet(), SortedSet(), SortedSet(TreeProjection(Seq(P("my_ptr")(a, b)), P("my_ptr")(b, c))))
 
         assert(sfp1.isDelimited(sid))
 
-        val sfp2 = StackForestProjection.from(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(P("my_ptr")(a, b), P("my_ptr")(a, c)), P("my_ptr")(b, c))))
+        val sfp2 = new StackForestProjection(SortedSet(), SortedSet(), SortedSet(TreeProjection(Seq(P("my_ptr")(a, b), P("my_ptr")(a, c)), P("my_ptr")(b, c))))
 
         assert(!sfp2.isDelimited(sid))
 
-        val sfp3 = StackForestProjection.from(SortedSet(_1), SortedSet(), Seq(TreeProjection(Seq(P("my_ptr")(_1, b), P("my_ptr")(a, c)), P("my_ptr")(b, c))))
+        val sfp3 = new StackForestProjection(SortedSet(_1), SortedSet(), SortedSet(TreeProjection(Seq(P("my_ptr")(_1, b), P("my_ptr")(a, c)), P("my_ptr")(b, c))))
 
         assert(!sfp3.isDelimited(sid))
     }
