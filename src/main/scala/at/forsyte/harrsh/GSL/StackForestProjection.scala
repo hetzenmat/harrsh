@@ -39,9 +39,9 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
 
   Utils.debugRequireMsg(guardedExistentials.intersect(guardedUniversals).isEmpty, "No duplicates between quantifier blocks allowed")
   Utils.debugRequireMsg(guardedExistentials == SortedSet.from(LazyList.from(1).map(BoundVar.apply).take(guardedExistentials.size)),
-                        "Quantified variables must have consecutive indices starting with 1")
+    "Quantified variables must have consecutive indices starting with 1")
   Utils.debugRequireMsg(guardedUniversals == SortedSet.from(LazyList.from(guardedExistentials.size + 1).map(BoundVar.apply).take(guardedUniversals.size)),
-                        "Quantified variables must have consecutive indices starting with 1")
+    "Quantified variables must have consecutive indices starting with 1")
 
   val quantifiedLength: Int = guardedExistentials.size + guardedUniversals.size
   val boundVars: Set[BoundVar] = boundVariables(formula)
@@ -84,11 +84,11 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
   }
 
   Utils.debugRequireMsg(boundVars == guardedExistentials.union(guardedUniversals),
-                        "Set of bound variables is not equal to set of quantified variables")
+    "Set of bound variables is not equal to set of quantified variables")
 
   def replaceQuantifiedVariables(replacements: Seq[BoundVar]): Iterable[TreeProjection] = {
     Utils.debugRequireMsg(guardedExistentials.size + guardedUniversals.size == replacements.size,
-                          "Size of quantified variables does not match")
+      "Size of quantified variables does not match")
 
     val replEx = replacements.take(guardedExistentials.size)
     val replUn = replacements.drop(guardedExistentials.size)
@@ -178,13 +178,13 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
             None
           else {
             val newProj = TreeProjection((calls.zipWithIndex.collect({ case (v, k) if k != ix => v }) ++ f.allholepreds).sorted,
-                                         rootpred)
+              rootpred)
 
             val newFormulas = formulaWithIndex.collect({ case (v, k) if k != i && k != j => v }) union (Set(newProj))
             val boundVars = boundVariables(newFormulas)
             Some(new StackForestProjection(guardedExistentials.intersect(boundVars),
-                                           guardedUniversals.intersect(boundVars),
-                                           SortedSet.from(newFormulas)))
+              guardedUniversals.intersect(boundVars),
+              SortedSet.from(newFormulas)))
           }
         case _ => None
       }).toSet
@@ -230,8 +230,8 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
     guardedUniversals.unsorted.map(bv => {
       val newUniversals = guardedUniversals.diff(Set(bv))
       val bvarSubst: Map[BoundVar, BoundVar] = (bv.index + 1 to quantifiedLength).zip(LazyList.from(bv.index))
-                                                                                 .map(t => (BoundVar(t._1), BoundVar(t._2)))
-                                                                                 .toMap
+        .map(t => (BoundVar(t._1), BoundVar(t._2)))
+        .toMap
 
       new StackForestProjection(guardedExistentials, SortedSet.from(newUniversals.unsorted.map(i => bvarSubst.getOrElse(i, i))), formula.map(_.substitute(bvarSubst.asInstanceOf[Map[Var, Var]].updated(bv, x))))
     }).toSet
@@ -284,8 +284,8 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
 object StackForestProjection {
 
   val empty: StackForestProjection = new StackForestProjection(SortedSet.empty,
-                                                               SortedSet.empty,
-                                                               SortedSet.empty)
+    SortedSet.empty,
+    SortedSet.empty)
 
   def fromPtrmodel(ac: AliasingConstraint[Var], inst: RuleInstance, model: Map[Var, Int], pointsTo: PointsTo): StackForestProjection = {
     type PredCall = (String, Seq[Int])
@@ -304,12 +304,12 @@ object StackForestProjection {
     require(univRepl.keySet.intersect(stackRepl.keySet).isEmpty)
 
     val r = new StackForestProjection(SortedSet(),
-                                      universals,
-                                      SortedSet.from(Seq(
-                                        TreeProjection(projectLoc._1.map({
-                                          case (predName, args) =>
-                                            Atom.PredicateCall(predName, args.map(i => univRepl.getOrElse(i, stackRepl(i))))
-                                        }).sorted, Atom.PredicateCall(projectLoc._2._1, projectLoc._2._2.map(i => univRepl.getOrElse(i, stackRepl(i))))))))
+      universals,
+      SortedSet.from(Seq(
+        TreeProjection(projectLoc._1.map({
+          case (predName, args) =>
+            Atom.PredicateCall(predName, args.map(i => univRepl.getOrElse(i, stackRepl(i))))
+        }).sorted, Atom.PredicateCall(projectLoc._2._1, projectLoc._2._2.map(i => univRepl.getOrElse(i, stackRepl(i))))))))
 
     r
   }
@@ -355,8 +355,8 @@ object StackForestProjection {
           val choices: Seq[(BoundVar, Either[Unit, BoundVar])] = LazyList
             .continually(BoundVar(s))
             .zip(LazyList.from(offset)
-                         .take(other.guardedExistentials.size)
-                         .map(i => Right(BoundVar(i))))
+              .take(other.guardedExistentials.size)
+              .map(i => Right(BoundVar(i))))
 
           others.flatMap(seq => {
             ((BoundVar(s), universal) +: seq) +: choices.map(head => head +: seq)
@@ -389,7 +389,7 @@ object StackForestProjection {
           rightUnivs = rightCombination.collect { case (boundVar, Left(_)) => boundVar }) yield {
 
       val combs = aux(leftUnivs.size + rightUnivs.size,
-                      left.guardedUniversals.toSeq.map(Left.apply) ++ right.guardedUniversals.toSeq.map(Right.apply))
+        left.guardedUniversals.toSeq.map(Left.apply) ++ right.guardedUniversals.toSeq.map(Right.apply))
         .filter(seq => {
           val idxs = seq.map(_._2.index).toSet
           idxs == Set.from(1 to idxs.size)
@@ -406,8 +406,8 @@ object StackForestProjection {
           ).toMap
 
         Seq(new StackForestProjection(existentials,
-                                      SortedSet.from(BoundVar.from(1, leftUnivs.size + rightUnivs.size, existentials.size)),
-                                      left.formula.map(_.substitute(leftRemapping)) ++ right.formula.map(_.substitute(rightRemapping))))
+          SortedSet.from(BoundVar.from(1, leftUnivs.size + rightUnivs.size, existentials.size)),
+          left.formula.map(_.substitute(leftRemapping)) ++ right.formula.map(_.substitute(rightRemapping))))
       } else
         combs.map(seq => {
           val seqOffset = seq.map({ case (value, boundVar) => (value, BoundVar(boundVar.index + existentials.size)) })
@@ -421,51 +421,42 @@ object StackForestProjection {
             (1 to right.guardedExistentials.size).map(i => (BoundVar(i), BoundVar(i + left.guardedExistentials.size)))).toMap
 
           new StackForestProjection(existentials,
-                                    universalSet,
-                                    left.formula.map(_.substitute(leftRemapping)) ++ right.formula.map(_.substitute(rightRemapping)))
+            universalSet,
+            left.formula.map(_.substitute(leftRemapping)) ++ right.formula.map(_.substitute(rightRemapping)))
         })
 
     }).flatten.toSet
   }
 }
 
-object TreeProjection {
-  val orderingPred: Ordering[(Int, IndexedSeq[Int])] = Ordering.Tuple2[Int, IndexedSeq[Int]](Ordering[Int], Ordering.Implicits.seqOrdering[IndexedSeq, Int])
-  val orderingSeqPred: Ordering[IndexedSeq[(Int, IndexedSeq[Int])]] = Ordering.Implicits.seqOrdering[IndexedSeq, (Int, IndexedSeq[Int])](TreeProjection.orderingPred)
-}
-
 /**
-  * This class is going to replace TreeProjection once the rewrite of the stack-forest projection with int representations is finished
+  * A predicate call is represented by an indexed sequence of integers, where the first int corresponds to the predicate
+  * and the following integers represent the variables which are the arguments of the predicate.
+  *
+  * A tree projection is then represented by an indexed sequence of predicate calls, where the first predicate call
+  * corresponds to the root predicate and the following predicate calls represent the hole predicates.
   */
-case class TreeProjection2(allholepreds: IndexedSeq[(Int, IndexedSeq[Int])], rootpred: (Int, IndexedSeq[Int])) extends Ordered[TreeProjection2] {
+object TreeProjection {
+  type PredicateCall = IndexedSeq[Int]
+  type TreeProjection2 = IndexedSeq[PredicateCall]
 
-  require(Utils.isSorted(allholepreds)(TreeProjection.orderingPred))
+  val orderingPredicateCall: Ordering[PredicateCall] = Ordering.Implicits.seqOrdering[IndexedSeq, Int]
+  val orderingTreeProjection: Ordering[TreeProjection2] = Ordering.Implicits.seqOrdering[IndexedSeq, PredicateCall](orderingPredicateCall)
 
-  def substitute(subst: Map[Int, Int]): TreeProjection2 = {
-    TreeProjection2(allholepreds.map({ case (i, value) => (i, value.map(v => subst.getOrElse(v, v))) }).sorted(TreeProjection.orderingPred),
-                    (rootpred._1, rootpred._2.map(v => subst.getOrElse(v, v))))
+  def create(rootpred: PredicateCall, allholepreds: IndexedSeq[PredicateCall]): TreeProjection2 = {
+    Utils.debugRequire(Utils.isSorted(allholepreds)(TreeProjection.orderingPredicateCall))
+    rootpred +: allholepreds
   }
 
-  @deprecated("Maybe not needed anymore")
-  def allRootArguments(sid: SID_btw): Seq[Int] = {
-    allholepreds.map(p => p._2(sid.predicates(sid.predBiMap.reverse(p._1)).predrootIndex)) :+ rootpred._2(sid.predicates(sid.predBiMap.reverse(rootpred._1)).predrootIndex)
-  }
+  def substitute(tp: TreeProjection2, subst: Map[Int, Int]): TreeProjection2 = tp.map(p => substitutePred(p, subst))
 
-  override def compare(that: TreeProjection2): Int = {
-    val res = TreeProjection.orderingSeqPred.compare(allholepreds, that.allholepreds)
-
-    if (res == 0)
-      TreeProjection.orderingPred.compare(rootpred, that.rootpred)
-    else
-      res
-  }
+  private def substitutePred(pred: PredicateCall, subst: Map[Int, Int]): IndexedSeq[Int] =
+    pred.head +: pred.tail.map(i => subst.getOrElse(i, i))
 }
 
 case class TreeProjection(allholepreds: Seq[GslFormula.Atom.PredicateCall], rootpred: GslFormula.Atom.PredicateCall) extends Ordered[TreeProjection] {
 
   require(Utils.isSorted(allholepreds))
-
-  def hasNullAsRoot(sid: SID_btw): Boolean = (rootpred +: allholepreds).exists(p => p.args(sid.predicates(p.pred).predrootIndex) == NullConst)
 
   def substitute(subst: Map[Var, Var]): TreeProjection = {
     TreeProjection(allholepreds.map(_.substitute(subst)).sorted, rootpred.substitute(subst))

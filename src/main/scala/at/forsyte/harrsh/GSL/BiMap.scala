@@ -10,8 +10,8 @@ object BiMap {
 
 class BiMap[K, V] private(val tuples: Seq[(K, V)] /*, val missingKeyFunction: K => Option[V], val missingValueFunction: V => Option[K]*/) {
 
-  require(tuples.map(_._1).toSet.size == tuples.size)
-  require(tuples.map(_._2).toSet.size == tuples.size)
+  Utils.debugRequire(tuples.map(_._1).toSet.size == tuples.size)
+  Utils.debugRequire(tuples.map(_._2).toSet.size == tuples.size)
 
   val forwardMap: Map[K, V] = tuples.toMap
   val reverseMap: Map[V, K] = tuples.map(_.swap).toMap

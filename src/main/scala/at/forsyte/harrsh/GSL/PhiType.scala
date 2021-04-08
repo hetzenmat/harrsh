@@ -67,9 +67,9 @@ object PhiType {
 
     if ((left.alloced(sid) intersect right.alloced(sid)).isEmpty) {
 
-      // TODO: parallel
       val projections = for (phi1 <- left.projections.unsorted;
-                             phi2 <- right.projections.unsorted) yield StackForestProjection.composition(phi1, phi2, sid)
+                             phi2 <- right.projections.unsorted) yield  { StackForestProjection.composition(phi1, phi2, sid) }
+
       PhiType.from(projections.flatten.filter(_.isDelimited(sid)), sid, ac)
     } else {
       None
@@ -183,11 +183,10 @@ object PhiType {
 
             if (toAssign.isEmpty) {
 
-
               val tp = TreeProjection(rule.calls.map(_.substitute(subst)),
                                       PredicateCall(pred.name, pred.args.map(FreeVar).map(subst)))
 
-              if (tp.hasNullAsRoot(sid) || !ruleSatisfiable(subst)) Seq()
+              if (!ruleSatisfiable(subst)) Seq()
               else Seq(Some(new StackForestProjection(SortedSet.empty,
                                                       SortedSet.from(bv.take(univVars.size)),
                                                       SortedSet.from(Seq(tp)))))
@@ -203,7 +202,7 @@ object PhiType {
                 val tp = TreeProjection(rule.calls.map(_.substitute(substAll)),
                                         PredicateCall(pred.name, pred.args.map(FreeVar).map(substAll)))
 
-                if (tp.hasNullAsRoot(sid) || !ruleSatisfiable(substAll)) None
+                if (!ruleSatisfiable(substAll)) None
                 else Some(new StackForestProjection(SortedSet.empty,
                                                     SortedSet.from(bv.take(univVars.size)),
                                                     SortedSet.from(Seq(tp))))
@@ -216,7 +215,7 @@ object PhiType {
       result
     }).flatten.flatten.toSet
 
-    PhiType.from(projections, sid, ac).get
+    PhiType.from(projections.filter(_.isDelimited(sid)), sid, ac).get
   }
 
   def ptrmodel(sid: SID_btw, ac: AliasingConstraint[Var], pointsTo: PointsTo): PhiType = {
@@ -240,7 +239,7 @@ object PhiType {
     val _2 = ptrmodel2(sid, ac, pointsTo)
 
     if (_2 != r.get) {
-      print()
+      require(false)
     }
 
     r.get

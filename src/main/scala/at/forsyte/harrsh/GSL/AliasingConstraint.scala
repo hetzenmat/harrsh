@@ -9,21 +9,18 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
 
   val eqClass: mutable.Map[T, Int] = mutable.Map.empty
 
-  require(Utils.isSorted(partition)(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
+  Utils.debugRequire(Utils.isSorted(partition)(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
+  Utils.debugRequire(partition.flatten.toSet == domain)
 
-  require(partition.flatten.toSet == domain)
-
-  // TODO: disable for performance
-  require(domain.size == partition.map(_.size).sum, "Partition is not valid")
 
   private def eqClassGet(v: T): Int = {
-    require(domain(v))
+    Utils.debugRequire(domain(v))
 
     if (eqClass.contains(v))
       eqClass(v)
     else {
       val index = partition.indexWhere(s => s.contains(v))
-      require(index >= 0)
+      Utils.debugRequire(index >= 0)
       eqClass.put(v, index)
 
       index
@@ -33,8 +30,6 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
   def isLone(v: T): Boolean = this(v).size == 1
 
   def getEquivalenceClass(v: T): SortedSet[T] = this(v)
-
-  //def largestAlias(v: T): T = this (v).max
 
   private def apply(v: T): SortedSet[T] = partition(eqClassGet(v))
 
@@ -47,7 +42,7 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
   }
 
   def allExtensions(v: T): Set[AliasingConstraint[T]] = {
-    require(!domain(v))
+    Utils.debugRequire(!domain(v))
 
     val newDomain = domain.incl(v)
 
@@ -57,7 +52,7 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
   }
 
   def rename(subst: Map[T, T]): AliasingConstraint[T] = {
-    require(domain.disjoint(subst.values.toSet))
+    Utils.debugRequire(domain.disjoint(subst.values.toSet))
 
     val newPartition = partition.map(ss => ss.map(v => subst.getOrElse(v, v)))
 
@@ -67,8 +62,8 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
   def remove(elems: Seq[T]): AliasingConstraint[T] = elems.foldLeft(this) { (ac, x) => ac.remove(x) }
 
   def remove(x: T): AliasingConstraint[T] = {
-    require(domain.contains(x))
-    require(this (x).size > 1)
+    Utils.debugRequire(domain.contains(x))
+    Utils.debugRequire(this (x).size > 1)
 
     val newPartition = partition.map(_.filter(_ != x))
 
@@ -78,11 +73,11 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
   def reverseRenaming(x: Seq[T], y: Seq[T]): AliasingConstraint[T] = {
     val xSet = x.toSet
     val ySet = y.toSet
-    require(x.length == xSet.size)
-    require(x.length == y.length)
-    require(domain.intersect(xSet).isEmpty)
+    Utils.debugRequire(x.length == xSet.size)
+    Utils.debugRequire(x.length == y.length)
+    Utils.debugRequire(domain.intersect(xSet).isEmpty)
 
-    require(ySet.subsetOf(domain))
+    Utils.debugRequire(ySet.subsetOf(domain))
 
     val yMap: Seq[(Int, T)] = y.map(eqClassGet).zip(y)
     val toChange = yMap.map(_._1).toSet
