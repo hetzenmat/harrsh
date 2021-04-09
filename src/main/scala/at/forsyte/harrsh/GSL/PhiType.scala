@@ -183,7 +183,7 @@ object PhiType {
 
             if (toAssign.isEmpty) {
 
-              val tp = TreeProjection(rule.calls.map(_.substitute(subst)),
+              val tp = TreeProjection(rule.calls.map(_.substitute(subst)).sorted,
                                       PredicateCall(pred.name, pred.args.map(FreeVar).map(subst)))
 
               if (!ruleSatisfiable(subst)) Seq()
@@ -199,7 +199,7 @@ object PhiType {
                     map.updated(v1, v2)
                 })
 
-                val tp = TreeProjection(rule.calls.map(_.substitute(substAll)),
+                val tp = TreeProjection(rule.calls.map(_.substitute(substAll)).sorted,
                                         PredicateCall(pred.name, pred.args.map(FreeVar).map(substAll)))
 
                 if (!ruleSatisfiable(substAll)) None

@@ -102,12 +102,19 @@ class SID private(val predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
 }
 
 
-class SID_btw(val predicates: Map[String, SID.Predicate[SymbolicHeapBtw]]) {
+final class SID_btw(val predicates: Map[String, SID.Predicate[SymbolicHeapBtw]]) {
 
   val freeVars: Set[Var] = predicates.values.flatMap(_.freeVars).toSet
 
   val varBiMap: BiMap[Var, Int] = BiMap.from((NullConst, 0) +: freeVars.excl(NullConst).toSeq.sorted.zipWithIndex.map(t => (t._1, t._2 + 1)))
   val predBiMap: BiMap[String, Int] = BiMap.from(predicates.keys.toSeq.sorted.zipWithIndex.map(t => (t._1, t._2 + 1)))
+
+  @inline
+  def predicateInt(i: Int): SID.Predicate[SymbolicHeapBtw] = predicates(predBiMap.reverse(i))
+
+  @inline
+  def getRootArgument(predicateCall: TreeProjection.PredicateCall): Int =
+    predicateCall(predicateInt(predicateCall.head).predrootIndex + 1)
 
   def allRuleInstancesForPointsTo(from: Int, to: Seq[Int], range: Range): Iterable[(Map[Var, Int], RuleInstance)] = {
 

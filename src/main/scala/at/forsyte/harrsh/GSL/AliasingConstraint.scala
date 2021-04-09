@@ -131,6 +131,11 @@ object AliasingConstraint {
     else ac(v).max
   }
 
+  def largestAliasInt(ac: AliasingConstraint[Int], v: Int): Int = {
+    if (ac.domain.contains(0) && ac =:= (v, 0)) 0
+    else ac(v).max
+  }
+
   def allAliasingConstraints[T](elems: Set[T])(implicit ord: Ordering[T]): LazyList[AliasingConstraint[T]] =
     allPartitions(elems).map(partition => new AliasingConstraint(elems, partition.map(v => SortedSet.from(v)).toIndexedSeq.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T])))
 
