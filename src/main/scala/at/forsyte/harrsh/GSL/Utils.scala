@@ -50,6 +50,28 @@ object Utils {
     }
   }
 
+  def chainIterators[A, B](sequence: IndexedSeq[A], f: A => Iterator[B]): Iterator[B] = new Iterator[B] {
+    var currentIterator: Iterator[A] = Iterator.empty
+    var index: Int = -1
+    searchNext()
+
+    override def hasNext: Boolean = index <= sequence.size && currentIterator.hasNext
+
+    private def searchNext(): Unit = {
+      while (!currentIterator.hasNext && index < sequence.size) {
+        index += 1
+        currentIterator = f(sequence(index))
+      }
+    }
+
+    override def next(): B = {
+      val a = currentIterator.next()
+      searchNext()
+
+      a
+    }
+  }
+
   def allAssignments[A, B](elems: Seq[A], values: Seq[B]): Seq[Seq[(A, B)]] = {
     require(values.nonEmpty)
     require(elems.nonEmpty)
@@ -79,6 +101,17 @@ object Utils {
   def allSeqsWithRange(length: Int, range: Range): LazyList[Seq[Int]] = length match {
     case 1 => LazyList.from(range.map(i => Seq(i)))
     case _ => LazyList.from(range.flatMap(i => allSeqsWithRange(length - 1, range).map(i +: _)))
+  }
+
+  def isSortedStrict[A](a: IndexedSeq[A])(implicit evidence: Ordering[A]): Boolean = {
+    var i = 0
+    while (i + 1 < a.size) {
+      if (evidence.gteq(a(i), a(i + 1))) return false
+
+      i += 1
+    }
+
+    true
   }
 
   def isSorted[A](a: Seq[A])(implicit evidence: Ordering[A]): Boolean = {

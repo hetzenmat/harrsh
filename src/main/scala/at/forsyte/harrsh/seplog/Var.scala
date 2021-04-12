@@ -125,6 +125,7 @@ object Var {
   val NullString = "null"
   val NilString = "nil"
   val BoundVarPrefix = "\u03b1"
+
   val FreeVarDefaultPrefix = "x"
 
   implicit def ord[T <: Var]: Ordering[T] = Ordering.fromLessThan(_ < _)
