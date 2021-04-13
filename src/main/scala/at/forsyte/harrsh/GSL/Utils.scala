@@ -120,4 +120,41 @@ object Utils {
     else
       a.zip(a.tail).forall(t => evidence.lteq(t._1, t._2))
   }
+
+  private def deleteHelper[A](v: IndexedSeq[A], n: Int): collection.mutable.Builder[A, IndexedSeq[A]] = {
+    val b = v.iterableFactory.newBuilder[A]
+    var i = 0
+    v.foreach { x =>
+      if (i != n) {
+        b += x
+      }
+      i += 1
+    }
+    b
+  }
+
+  def insertInstead[A](v: IndexedSeq[A], n: Int, elems: IterableOnce[A]): IndexedSeq[A] = {
+    val b = v.iterableFactory.newBuilder[A]
+    var i = 0
+    v.foreach { x =>
+      if (i == n) b += x
+      else b ++= elems
+
+      i += 1
+    }
+
+    b.result()
+  }
+
+  @inline
+  def deleteAt[A](v: IndexedSeq[A], n: Int): IndexedSeq[A] = {
+    deleteHelper(v, n).result()
+  }
+
+  def deleteAtAndAppend[A](v: IndexedSeq[A], n: Int, elems: IterableOnce[A]): IndexedSeq[A] = {
+    val b = deleteHelper(v, n)
+    b.addAll(elems)
+
+    b.result()
+  }
 }

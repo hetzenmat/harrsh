@@ -31,7 +31,7 @@ object Substitution {
   @inline
   def empty[A]: Substitution[A] = new Substitution(collection.mutable.Map.empty[A, A])
 
-  def from[A](elems: Seq[(A, A)]): Substitution[A] = {
+  def from[A](elems: Iterable[(A, A)]): Substitution[A] = {
     val s = empty[A]
     elems.foreach(s.add)
 

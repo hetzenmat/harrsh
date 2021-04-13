@@ -2,6 +2,7 @@ package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.SID.{Predicate, establishedResultSuccess}
+import at.forsyte.harrsh.GSL.projections.optimized.TreeProjection
 import at.forsyte.harrsh.heapautomata.instances.TrackingAutomata
 import at.forsyte.harrsh.refinement.RefinementAlgorithms
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
