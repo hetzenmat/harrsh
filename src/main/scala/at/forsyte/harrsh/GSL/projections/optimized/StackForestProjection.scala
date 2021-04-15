@@ -5,7 +5,7 @@ import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.GSL.projections.optimized.StackForestProjection.{boundVariables, freeVariables}
 import at.forsyte.harrsh.GSL.projections.optimized.TreeProjection.{PredicateCall, TreeProjection, orderingPredicateCall, orderingTreeProjection}
 import at.forsyte.harrsh.GSL.query.QueryContext
-import at.forsyte.harrsh.GSL.{AliasingConstraint, RuleInstance, Substitution, Utils}
+import at.forsyte.harrsh.GSL.{AliasingConstraint, Env, RuleInstance, Substitution, Utils}
 import at.forsyte.harrsh.seplog.BoundVar
 
 import scala.annotation.tailrec
@@ -261,7 +261,7 @@ object StackForestProjection {
 
     val createPredCall: ((String, Seq[Int])) => PredicateCall = {
       case (predName, args) =>
-        (QueryContext.predForward(predName) +: args.map(stackRepl.apply)).toIndexedSeq
+        (Env.predForward(predName) +: args.map(stackRepl.apply)).toIndexedSeq
     }
 
     val rootPred: PredicateCall = createPredCall(inst.pred.name, inst.predArgs)
@@ -389,7 +389,7 @@ object TreeProjection {
   @inline def arity(predicateCall: PredicateCall): Int = predicateCall.size - 1
 
   @inline def reprPredicateCall(predicateCall: PredicateCall, sid: SID_btw): String = {
-    QueryContext.predReverse(predicateCall.head) + predicateCall.tail.map(QueryContext.varReverse).mkString("(", ", ", ")")
+    Env.predReverse(predicateCall.head) + predicateCall.tail.map(Env.varReverse).mkString("(", ", ", ")")
   }
 
   @inline def reprTreeProjection(treeProjection: TreeProjection, sid: SID_btw): String =
