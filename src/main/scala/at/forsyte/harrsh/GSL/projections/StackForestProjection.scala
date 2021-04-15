@@ -1,11 +1,11 @@
-package at.forsyte.harrsh.GSL
+package at.forsyte.harrsh.GSL.projections
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{PointsTo, PredicateCall}
-import at.forsyte.harrsh.GSL.StackForestProjection.{boundVariables, freeVariables, varSeq}
-import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, Multiplicity, NullConst, Var}
+import at.forsyte.harrsh.GSL._
+import at.forsyte.harrsh.GSL.projections.StackForestProjection.{boundVariables, freeVariables, varSeq}
+import at.forsyte.harrsh.seplog._
 
-import scala.+:
 import scala.annotation.tailrec
 import scala.collection.SortedSet
 import scala.runtime.ScalaRunTime
@@ -159,7 +159,7 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
           if (ix == -1)
             None
           else {
-            val newProj = TreeProjection((calls.zipWithIndex.collect({ case (v, k) if k != ix => v }) ++ f.allholepreds).sorted,
+            val newProj = projections.TreeProjection((calls.zipWithIndex.collect({ case (v, k) if k != ix => v }) ++ f.allholepreds).sorted,
                                          rootpred)
 
             val newFormulas = formulaWithIndex.collect({ case (v, k) if k != i && k != j => v }) union (Set(newProj))
@@ -288,7 +288,7 @@ object StackForestProjection {
     val r = new StackForestProjection(SortedSet(),
                                       universals,
                                       SortedSet.from(Seq(
-                                        TreeProjection(projectLoc._1.map({
+                                        projections.TreeProjection(projectLoc._1.map({
                                           case (predName, args) =>
                                             Atom.PredicateCall(predName, args.map(i => univRepl.getOrElse(i, stackRepl(i))))
                                         }).sorted, Atom.PredicateCall(projectLoc._2._1, projectLoc._2._2.map(i => univRepl.getOrElse(i, stackRepl(i))))))))
@@ -348,7 +348,6 @@ object StackForestProjection {
 
       loop(1)
     }
-
 
     val leftCombinations = getCombinations(left, right, left.guardedExistentials.size + 1)
     val rightCombinations = getCombinations(right, left, 1)

@@ -1,7 +1,8 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{Equality, PointsTo, PredicateCall}
-import at.forsyte.harrsh.GSL.projections.optimized
+import at.forsyte.harrsh.GSL.projections.{StackForestProjection, TreeProjection, optimized}
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 
 import scala.collection.SortedSet
@@ -69,7 +70,9 @@ object PhiType {
     if ((left.alloced(sid) intersect right.alloced(sid)).isEmpty) {
 
       val projections = for (phi1 <- left.projections.unsorted;
-                             phi2 <- right.projections.unsorted) yield  { StackForestProjection.composition(phi1, phi2, sid) }
+                             phi2 <- right.projections.unsorted) yield {
+        StackForestProjection.composition(phi1, phi2, sid)
+      }
 
       PhiType.from(projections.flatten.filter(_.isDelimited(sid)), sid, ac)
     } else {
@@ -184,7 +187,7 @@ object PhiType {
 
             if (toAssign.isEmpty) {
 
-              val tp = optimized.TreeProjection(rule.calls.map(_.substitute(subst)).sorted,
+              val tp = TreeProjection(rule.calls.map(_.substitute(subst)).sorted,
                                       PredicateCall(pred.name, pred.args.map(FreeVar).map(subst)))
 
               if (!ruleSatisfiable(subst)) Seq()
@@ -200,7 +203,7 @@ object PhiType {
                     map.updated(v1, v2)
                 })
 
-                val tp = optimized.TreeProjection(rule.calls.map(_.substitute(substAll)).sorted,
+                val tp = GSL.projections.TreeProjection(rule.calls.map(_.substitute(substAll)).sorted,
                                         PredicateCall(pred.name, pred.args.map(FreeVar).map(substAll)))
 
                 if (!ruleSatisfiable(substAll)) None

@@ -1,6 +1,9 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL.projections.StackForestProjection
 import at.forsyte.harrsh.seplog.Var
+
+import scala.collection.mutable.ArrayBuffer
 
 
 object Utils {
@@ -51,7 +54,7 @@ object Utils {
   }
 
   def chainIterators[A, B](sequence: IndexedSeq[A], f: A => Iterator[B]): Iterator[B] = new Iterator[B] {
-    var currentIterator: Iterator[A] = Iterator.empty
+    var currentIterator: Iterator[B] = Iterator.empty
     var index: Int = -1
     searchNext()
 
@@ -86,16 +89,48 @@ object Utils {
     aux(elems)
   }
 
-  def allAssignments[A](length: Int, values: Seq[A]): Seq[Seq[A]] = {
+  def allAssignmentsMonotone(length: Int, values: IndexedSeq[Int]): IndexedSeq[(Int, IndexedSeq[Int])] = {
     require(values.nonEmpty)
 
-    def aux(length: Int): Seq[Seq[A]] =
+    val choices = ArrayBuffer.empty[(Int, IndexedSeq[Int])]
+    var currentLength = 0
+    while (currentLength < length) {
+      val size = choices.length
+      var i = 0
+      while (i < size) {
+        i += 1
+
+        val (c, s) = choices(i)
+        choices.update(i, (c + 1, -(c + 1) +: s))
+
+        values.foreach { v => choices.addOne((c, v +: s)) }
+      }
+
+      currentLength += 1
+    }
+
+//    def aux(length: Int): IndexedSeq[(Int, IndexedSeq[Int])] =
+//      length match {
+//        case 1 => (1, IndexedSeq(-1)) +: values.map(v => (0, IndexedSeq(v)))
+//        case _ => values.flatMap(v => aux(length - 1).flatMap({ case (c, value) =>
+//          Seq((c, -c +: value), (c + 1, -(c + 1) +: value), (c, v +: value))
+//        }))
+//      }
+
+    choices.toIndexedSeq
+  }
+
+  def allAssignments[A](length: Int, values: IndexedSeq[A]): IndexedSeq[IndexedSeq[A]] = {
+    require(values.nonEmpty)
+
+    def aux(length: Int): IndexedSeq[IndexedSeq[A]] =
       length match {
-        case 1 => values.map(v => Seq(v))
+        case 1 => values.map(v => IndexedSeq(v))
         case _ => values.flatMap(i => aux(length - 1).map(i +: _))
       }
 
-    aux(length)
+    if (length == 0) IndexedSeq(IndexedSeq.empty)
+    else aux(length)
   }
 
   def allSeqsWithRange(length: Int, range: Range): LazyList[Seq[Int]] = length match {

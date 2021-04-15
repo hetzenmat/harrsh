@@ -11,7 +11,7 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
 
   Utils.debugRequire(Utils.isSorted(partition)(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
   Utils.debugRequire(partition.flatten.toSet == domain)
-
+  Utils.debugRequire(partition.forall(_.nonEmpty))
 
   private def eqClassGet(v: T): Int = {
     Utils.debugRequire(domain(v))
@@ -137,7 +137,10 @@ object AliasingConstraint {
   }
 
   def allAliasingConstraints[T](elems: Set[T])(implicit ord: Ordering[T]): LazyList[AliasingConstraint[T]] =
-    allPartitions(elems).map(partition => new AliasingConstraint(elems, partition.map(v => SortedSet.from(v)).toIndexedSeq.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T])))
+    allPartitions(elems).map { partition =>
+      new AliasingConstraint(elems,
+                             partition.map(v => SortedSet.from(v)).toIndexedSeq.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
+    }
 
   def allPartitions[A](set: Set[A])(implicit ordering: Ordering[A]): LazyList[Set[Set[A]]] = {
     def aux(seq: Seq[A]): LazyList[Set[Set[A]]] = {

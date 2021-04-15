@@ -2,9 +2,9 @@ package at.forsyte.harrsh.GSL.projections.optimized
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom.PointsTo
 import at.forsyte.harrsh.GSL.projections.optimized.StackForestProjection.{boundVariables, freeVariables}
+import at.forsyte.harrsh.GSL.projections.optimized.TreeProjection.{PredicateCall, TreeProjection, orderingPredicateCall, orderingTreeProjection}
 import at.forsyte.harrsh.GSL.{AliasingConstraint, RuleInstance, SID_btw, Substitution, Utils}
-import at.forsyte.harrsh.seplog.{BoundVar, Var}
-import TreeProjection.{PredicateCall, TreeProjection, orderingPredicateCall, orderingTreeProjection}
+import at.forsyte.harrsh.seplog.BoundVar
 
 import scala.annotation.tailrec
 import scala.collection.{Searching, SortedSet}
@@ -63,8 +63,8 @@ class StackForestProjection(val guardedExistentials: Int,
       }))
 
       StackForestProjection.normalized(guardedExistentials + univ.size,
-                                        guardedUniversals - univ.size,
-                                        formula.map(TreeProjection.substitute(_, subst)))
+                                       guardedUniversals - univ.size,
+                                       formula.map(TreeProjection.substitute(_, subst)))
     }).toSet
   }
 
@@ -129,8 +129,8 @@ class StackForestProjection(val guardedExistentials: Int,
               }
 
               derivableSet.add(StackForestProjection.normalized(guardedExistentials,
-                                                                 guardedUniversals,
-                                                                 newTP +: otherProjections))
+                                                                guardedUniversals,
+                                                                newTP +: otherProjections))
           }
         }
         j += 1
@@ -295,91 +295,53 @@ object StackForestProjection {
   }
 
   def allRescopings(left: StackForestProjection, right: StackForestProjection): Set[StackForestProjection] = {
-    val existentials = SortedSet.from(BoundVar.from(1, left.guardedExistentials.size + right.guardedExistentials.size))
+    val exCount = left.guardedExistentials + right.guardedExistentials
+    val foundProjections = collection.mutable.Set.empty[StackForestProjection]
 
-    val universal: Left[Unit, BoundVar] = Left(())
+    val choicesLeft = Utils.allAssignmentsMonotone(left.guardedUniversals, 1 + left.guardedExistentials to left.guardedExistentials + right.guardedExistentials)
+    val choicesRight = Utils.allAssignmentsMonotone(right.guardedUniversals, 1 to left.guardedExistentials)
 
-    def getCombinations(current: StackForestProjection, other: StackForestProjection, offset: Int): Seq[Seq[(BoundVar, Either[Unit, BoundVar])]] = {
-      def loop(s: Int): Seq[Seq[(BoundVar, Either[Unit, BoundVar])]] = {
-        if (s > current.guardedUniversals.size)
-          Seq(Seq.empty)
-        else {
-          val others = loop(s + 1)
+    val leftIt = choicesLeft.iterator
+    while (leftIt.hasNext) {
 
-          val choices: Seq[(BoundVar, Either[Unit, BoundVar])] = LazyList
-            .continually(BoundVar(s))
-            .zip(LazyList.from(offset)
-                         .take(other.guardedExistentials.size)
-                         .map(i => Right(BoundVar(i))))
+      val (leftUniv, leftAssignment) = leftIt.next()
+      val rightIt = choicesRight.iterator
+      while (rightIt.hasNext) {
+        val (rightUniv, rightAssignment) = rightIt.next()
 
-          others.flatMap(seq => {
-            ((BoundVar(s), universal) +: seq) +: choices.map(head => head +: seq)
+        val univCount = Math.max(leftUniv, rightUniv)
+
+        AliasingConstraint.allAliasingConstraints(Set.from(1 to univCount)).foreach { ac =>
+
+          val substExShift: Substitution[Int] = Substitution.from((1 to right.guardedExistentials).map { index =>
+            (index * -2 + 1, (index + left.guardedExistentials) * -2 + 1)
           })
+
+          val rightShifted = right.formula.map(TreeProjection.substitute(_, substExShift))
+
+          val substUniv = Substitution.empty[Int]
+
+          var i = 0
+          val adder: Int => Unit = { v =>
+            i += 1
+
+            if (v < 0) substUniv.add(i * -2, ac.getEquivalenceClass(-v).max * -2)
+            if (v > 0) substUniv.add(i * -2, v * -2 + 1)
+          }
+
+          leftAssignment.foreach(adder)
+          i = 0
+          rightAssignment.foreach(adder)
+
+          val proj = StackForestProjection.normalized(exCount,
+                                                      ac.partition.length,
+                                                      (left.formula ++ rightShifted).map(TreeProjection.substitute(_, substUniv)))
+          foundProjections.add(proj)
         }
       }
-
-      loop(1)
     }
 
-
-    val leftCombinations = getCombinations(left, right, left.guardedExistentials.size + 1)
-    val rightCombinations = getCombinations(right, left, 1)
-
-    def aux(max: Int, vars: Seq[Either[BoundVar, BoundVar]]): Seq[Seq[(Either[BoundVar, BoundVar], BoundVar)]] = {
-      vars match {
-        case Seq() => Seq(Seq())
-        case head +: tail =>
-
-          (for (i <- 1 to max) yield {
-            aux(max, tail).map(s => (head, BoundVar(i)) +: s)
-          }).flatten
-
-      }
-    }
-
-    (for (leftCombination <- leftCombinations;
-          rightCombination <- rightCombinations;
-          leftUnivs = leftCombination.collect { case (boundVar, Left(_)) => boundVar };
-          rightUnivs = rightCombination.collect { case (boundVar, Left(_)) => boundVar }) yield {
-
-      val combs = aux(leftUnivs.size + rightUnivs.size,
-                      left.guardedUniversals.toSeq.map(Left.apply) ++ right.guardedUniversals.toSeq.map(Right.apply))
-        .filter(seq => {
-          val idxs = seq.map(_._2.index).toSet
-          idxs == Set.from(1 to idxs.size)
-        })
-
-      val leftExistentials = leftCombination.collect { case (boundVar, Right(repl)) => (boundVar, repl) }
-      val rightExistentials = rightCombination.collect { case (boundVar, Right(repl)) => (boundVar, repl) }
-
-      if (combs.isEmpty) {
-
-        val leftRemapping: Map[Var, Var] = leftExistentials.toMap
-        val rightRemapping: Map[Var, Var] = (rightExistentials ++
-          (1 to right.guardedExistentials.size).map(i => (BoundVar(i), BoundVar(i + left.guardedExistentials.size)))
-          ).toMap
-
-        Seq(new StackForestProjection(existentials,
-                                      SortedSet.from(BoundVar.from(1, leftUnivs.size + rightUnivs.size, existentials.size)),
-                                      left.formula.map(_.substitute(leftRemapping)) ++ right.formula.map(_.substitute(rightRemapping))))
-      } else
-        combs.map(seq => {
-          val seqOffset = seq.map({ case (value, boundVar) => (value, BoundVar(boundVar.index + existentials.size)) })
-          val universalSet = SortedSet.from(seqOffset.map(_._2))
-          val leftUnivMapping: Seq[(BoundVar, BoundVar)] = seqOffset.collect { case (Left(v), boundVar) => (v, boundVar) }
-          val rightUnivMapping: Seq[(BoundVar, BoundVar)] = seqOffset.collect { case (Right(v), boundVar) => (v, boundVar) }
-
-          val leftRemapping: Map[Var, Var] = (leftExistentials ++ leftUnivMapping).toMap
-          val rightRemapping: Map[Var, Var] = (rightExistentials ++
-            rightUnivMapping ++
-            (1 to right.guardedExistentials.size).map(i => (BoundVar(i), BoundVar(i + left.guardedExistentials.size)))).toMap
-
-          new StackForestProjection(existentials,
-                                    universalSet,
-                                    left.formula.map(_.substitute(leftRemapping)) ++ right.formula.map(_.substitute(rightRemapping)))
-        })
-
-    }).flatten.toSet
+    foundProjections.toSet
   }
 }
 
