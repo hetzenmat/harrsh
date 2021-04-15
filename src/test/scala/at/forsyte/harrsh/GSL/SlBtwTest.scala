@@ -1,6 +1,7 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.GSL.SID.Predicate
+import at.forsyte.harrsh.GSL.SID.SID
+import at.forsyte.harrsh.GSL.SID.SID.Predicate
 import at.forsyte.harrsh.parsers.GslParser
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar}
 import org.scalatest.flatspec.AnyFlatSpec

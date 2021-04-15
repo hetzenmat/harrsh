@@ -53,27 +53,44 @@ object Utils {
     }
   }
 
-  def chainIterators[A, B](sequence: IndexedSeq[A], f: A => Iterator[B]): Iterator[B] = new Iterator[B] {
-    var currentIterator: Iterator[B] = Iterator.empty
-    var index: Int = -1
+  def chainIterators[A](elems: IterableOnce[Iterator[A]]): Iterator[A] = new Iterator[A] {
+    val elemsIterator: Iterator[Iterator[A]] = elems.iterator
+    var currentIterator: Iterator[A] = Iterator.empty
     searchNext()
 
-    override def hasNext: Boolean = index <= sequence.size && currentIterator.hasNext
+    private def searchNext(): Unit = while (!currentIterator.hasNext && elemsIterator.hasNext) currentIterator = elemsIterator.next()
 
-    private def searchNext(): Unit = {
-      while (!currentIterator.hasNext && index < sequence.size) {
-        index += 1
-        currentIterator = f(sequence(index))
-      }
-    }
+    override def hasNext: Boolean = currentIterator.hasNext
 
-    override def next(): B = {
+    override def next(): A = {
       val a = currentIterator.next()
       searchNext()
 
       a
     }
   }
+
+//  def chainIterators[A, B](sequence: IndexedSeq[A], f: A => Iterator[B]): Iterator[B] = new Iterator[B] {
+//    var currentIterator: Iterator[B] = Iterator.empty
+//    var index: Int = -1
+//    searchNext()
+//
+//    override def hasNext: Boolean = index <= sequence.size && currentIterator.hasNext
+//
+//    private def searchNext(): Unit = {
+//      while (!currentIterator.hasNext && index < sequence.size) {
+//        index += 1
+//        currentIterator = f(sequence(index))
+//      }
+//    }
+//
+//    override def next(): B = {
+//      val a = currentIterator.next()
+//      searchNext()
+//
+//      a
+//    }
+//  }
 
   def allAssignments[A, B](elems: Seq[A], values: Seq[B]): Seq[Seq[(A, B)]] = {
     require(values.nonEmpty)

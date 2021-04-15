@@ -2,7 +2,8 @@ package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{DisEquality, Equality, PointsTo, PredicateCall}
-import at.forsyte.harrsh.GSL.SID.Predicate
+import at.forsyte.harrsh.GSL.SID.SID.Predicate
+import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.seplog.{FreeVar, NullConst, Var}
 import com.typesafe.scalalogging.LazyLogging
 
@@ -73,10 +74,21 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       r
   }
 
-  def ptypes(atoms: Seq[Atom], ac: AliasingConstraint[Var], lookup: LookupFunction): Iterable[PhiType] = atoms match {
-    case atom +: Seq() => ptypes(atom, ac, lookup)
-    case head +: rest => PhiType.composition(sid, ptypes(head, ac, lookup), ptypes(rest, ac, lookup), ac)
+  def ptypes(atoms: Iterator[Atom], ac: AliasingConstraint[Var], lookup: LookupFunction): Iterable[PhiType] = {
+    require(atoms.hasNext)
+
+    val atom = atoms.next()
+    val types = ptypes(atom, ac, lookup)
+
+    if (atoms.hasNext) PhiType.composition(sid, ptypes(atom, ac, lookup), ptypes(atoms, ac, lookup), ac)
+    else types
   }
+
+  //  atoms match {
+//      case atom +: Seq() => ptypes(atom, ac, lookup)
+//      case head +: rest => PhiType.composition(sid, ptypes(head, ac, lookup), ptypes(rest, ac, lookup), ac)
+//    }
+//  }
 
   def ptypes(sh: SymbolicHeapBtw, ac: AliasingConstraint[Var], lookup: LookupFunction): Iterable[PhiType] =
     if (sh.quantifiedVars.nonEmpty) {
@@ -91,7 +103,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     } else ptypes(sh.atoms, ac, lookup)
 
 
-  def unfoldLazy(it: Integer, pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint[Var]): Set[PhiType] = {
+  def unfoldLazy(it: Integer, pred: SID.SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint[Var]): Set[PhiType] = {
 
     if (it == 0) {
       return Set.empty
@@ -119,7 +131,8 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
           newTypes.addAll(discovered)
         } else {
           if (!nonRecursiveTypes.contains((rule, ac))) {
-            nonRecursiveTypes.put((rule, ac), Set.from(ptypes(rule, ac, (_, _) => ???)))
+            val t = ptypes(rule, ac, (_, _) => ???)
+            nonRecursiveTypes.put((rule, ac), Set.from(t))
           }
 
           newTypes.addAll(nonRecursiveTypes((rule, ac)))
@@ -140,7 +153,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     }
   }
 
-  def getTypeLazy(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint[Var]): Set[PhiType] = {
+  def getTypeLazy(pred: SID.SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint[Var]): Set[PhiType] = {
 
     if (PredicateTypes.contains(pred.name, ac, sid)) {
       return PredicateTypes.get(pred.name, ac, sid)
@@ -168,7 +181,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     PredicateTypes.put(pred.name, ac, sid, result)
   }
 
-  def getType(pred: SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint[Var]): Set[PhiType] = {
+  def getType(pred: SID.SID.Predicate[SymbolicHeapBtw], ac: AliasingConstraint[Var]): Set[PhiType] = {
     if (!allFinished) unfold()
 
     state(pred.name)(ac).toSet

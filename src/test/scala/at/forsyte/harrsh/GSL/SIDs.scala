@@ -1,6 +1,7 @@
 package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Negation
+import at.forsyte.harrsh.GSL.SID.{SID, SID_btw}
 import at.forsyte.harrsh.parsers.GslParser
 import org.scalatest.Assertions.fail
 

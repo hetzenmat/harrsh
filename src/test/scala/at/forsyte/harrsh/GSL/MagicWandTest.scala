@@ -1,6 +1,8 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL.SID.SID
 import at.forsyte.harrsh.GSL.SIDs.parseFormula
+import at.forsyte.harrsh.GSL.query.Query
 import org.scalatest.flatspec.AnyFlatSpec
 
 class MagicWandTest extends AnyFlatSpec {

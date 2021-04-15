@@ -2,7 +2,9 @@ package at.forsyte.harrsh.parsers
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom._
 import at.forsyte.harrsh.GSL.GslFormula._
-import at.forsyte.harrsh.GSL.{GslFormula, Query, SID, SymbolicHeap}
+import at.forsyte.harrsh.GSL.SID.SID
+import at.forsyte.harrsh.GSL.query.Query
+import at.forsyte.harrsh.GSL.{GslFormula, SymbolicHeap, query}
 import at.forsyte.harrsh.parsers.GslParser.WhiteSpaceChar
 import at.forsyte.harrsh.seplog.{FreeVar, NullConst, Var}
 import org.parboiled2._
@@ -24,7 +26,7 @@ import org.parboiled2._
 class GslParser(val input: ParserInput) extends Parser {
 
   def parseQuery: Rule1[Query] = rule {
-    zeroOrMore(_Comment) ~ _FormulaSection ~ _SidSection ~ _StatusSection ~ EOI ~> ((tuple: (GslFormula, Boolean), sid: SID, status: Option[Boolean]) => Query(tuple._1, sid, tuple._2, status))
+    zeroOrMore(_Comment) ~ _FormulaSection ~ _SidSection ~ _StatusSection ~ EOI ~> ((tuple: (GslFormula, Boolean), sid: SID, status: Option[Boolean]) => query.Query(tuple._1, sid, tuple._2, status))
   }
 
   def parseFormula: Rule1[GslFormula] = rule {

@@ -2,6 +2,7 @@ package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{DisEquality, Equality, PointsTo, PredicateCall}
+import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.seplog.{FreeVar, NullConst, Var}
 import com.typesafe.scalalogging.LazyLogging
 

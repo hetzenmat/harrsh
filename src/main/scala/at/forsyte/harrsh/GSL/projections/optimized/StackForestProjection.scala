@@ -1,9 +1,11 @@
 package at.forsyte.harrsh.GSL.projections.optimized
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom.PointsTo
+import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.GSL.projections.optimized.StackForestProjection.{boundVariables, freeVariables}
 import at.forsyte.harrsh.GSL.projections.optimized.TreeProjection.{PredicateCall, TreeProjection, orderingPredicateCall, orderingTreeProjection}
-import at.forsyte.harrsh.GSL.{AliasingConstraint, RuleInstance, SID_btw, Substitution, Utils}
+import at.forsyte.harrsh.GSL.query.QueryContext
+import at.forsyte.harrsh.GSL.{AliasingConstraint, RuleInstance, Substitution, Utils}
 import at.forsyte.harrsh.seplog.BoundVar
 
 import scala.annotation.tailrec
@@ -43,8 +45,7 @@ class StackForestProjection(val guardedExistentials: Int,
   Utils.debugRequire(guardedExistentials >= 0 && guardedUniversals >= 0)
   Utils.debugRequire(Utils.isSortedStrict(formula)(TreeProjection.orderingTreeProjection))
 
-  val forall: String = "\u03b2" // β
-  "\u03b1"
+
   val quantifiedLength: Int = guardedExistentials + guardedUniversals
   val boundVars: Set[Int] = boundVariables(formula)
 
@@ -93,9 +94,9 @@ class StackForestProjection(val guardedExistentials: Int,
     * Finished
     */
   def isDelimited(sid: SID_btw): Boolean =
-    formula.flatten.forall(call => sid.getRootArgument(call) > 0) && {
+    formula.flatten.forall(call => QueryContext.getRootArgument(call) > 0) && {
       val allPredCallsLeft: Seq[PredicateCall] = formula.iterator.flatMap(tp => TreeProjection.getHolePreds(tp)).toSeq
-      val setLeftRootArgs = allPredCallsLeft.map(call => sid.getRootArgument(call)).toSet
+      val setLeftRootArgs = allPredCallsLeft.map(call => QueryContext.getRootArgument(call)).toSet
 
       setLeftRootArgs.size == allPredCallsLeft.size
     }
@@ -182,8 +183,8 @@ class StackForestProjection(val guardedExistentials: Int,
   }
 
   def repr(sid: SID_btw): String = {
-    (if (guardedExistentials > 0) (1 to guardedExistentials).map(BoundVar.apply).mkString("∃ ", " ", ". ") else "") +
-      (if (guardedUniversals > 0) (guardedExistentials + 1 to guardedExistentials + 1 + guardedUniversals).map(BoundVar.apply).mkString("∀ ", " ", ". ") else "") +
+    (if (guardedExistentials > 0) (1 to guardedExistentials).map(StackForestProjection.existsPrefix + _).mkString("∃ ", " ", ". ") else "") +
+      (if (guardedUniversals > 0) (1 to guardedUniversals).map(StackForestProjection.forallPrefix + _).mkString("∀ ", " ", ". ") else "") +
       formula.map(TreeProjection.reprTreeProjection(_, sid)).mkString(" * ")
   }
 
@@ -208,6 +209,9 @@ class StackForestProjection(val guardedExistentials: Int,
 
 object StackForestProjection {
 
+  val existsPrefix: String = "\u03b1" // α
+  val forallPrefix: String = "\u03b2" // β
+
   val ord: Ordering[(Int, Int, IndexedSeq[TreeProjection])] = Ordering.Tuple3[Int, Int, IndexedSeq[TreeProjection]](Ordering[Int], Ordering[Int], Ordering.Implicits.seqOrdering[IndexedSeq, TreeProjection](TreeProjection.orderingTreeProjection))
 
   val sortedSetOrd: Ordering[SortedSet[TreeProjection]] = Ordering.Implicits.sortedSetOrdering[SortedSet, TreeProjection](TreeProjection.orderingTreeProjection)
@@ -219,7 +223,7 @@ object StackForestProjection {
     var uvCounter = uvCount
 
     val formulaSorted = tps.sorted(orderingTreeProjection)
-    val variableIterator = Utils.chainIterators(formulaSorted, tp => TreeProjection.variableIterator(tp))
+    val variableIterator = Utils.chainIterators(formulaSorted.map(TreeProjection.variableIterator))
     val quantSubst = Substitution.empty[Int]
     while (variableIterator.hasNext) {
       val variable = variableIterator.next()
@@ -257,7 +261,7 @@ object StackForestProjection {
 
     val createPredCall: ((String, Seq[Int])) => PredicateCall = {
       case (predName, args) =>
-        (sid.predBiMap.forward(predName) +: args.map(stackRepl.apply)).toIndexedSeq
+        (QueryContext.predForward(predName) +: args.map(stackRepl.apply)).toIndexedSeq
     }
 
     val rootPred: PredicateCall = createPredCall(inst.pred.name, inst.predArgs)
@@ -385,7 +389,7 @@ object TreeProjection {
   @inline def arity(predicateCall: PredicateCall): Int = predicateCall.size - 1
 
   @inline def reprPredicateCall(predicateCall: PredicateCall, sid: SID_btw): String = {
-    sid.predBiMap.reverse(predicateCall.head) + predicateCall.tail.map(sid.varBiMap.reverse).mkString("(", ", ", ")")
+    QueryContext.predReverse(predicateCall.head) + predicateCall.tail.map(QueryContext.varReverse).mkString("(", ", ", ")")
   }
 
   @inline def reprTreeProjection(treeProjection: TreeProjection, sid: SID_btw): String =

@@ -2,8 +2,8 @@ package at.forsyte.harrsh.parsers
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom._
 import at.forsyte.harrsh.GSL.GslFormula._
-import at.forsyte.harrsh.GSL.SID.Rule
-import at.forsyte.harrsh.GSL.{RuleException, SymbolicHeap}
+import at.forsyte.harrsh.GSL.SID.SID.Rule
+import at.forsyte.harrsh.GSL.SymbolicHeap
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst}
 import org.scalatest.flatspec.AnyFlatSpec
 

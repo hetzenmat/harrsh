@@ -1,6 +1,8 @@
-package at.forsyte.harrsh.GSL
+package at.forsyte.harrsh.GSL.query
 
 import at.forsyte.harrsh.GSL.GslFormula.Negation
+import at.forsyte.harrsh.GSL.SID.SID
+import at.forsyte.harrsh.GSL.{AliasingConstraint, GslFormula, TypeComputation, query}
 import at.forsyte.harrsh.seplog.{NullConst, Var}
 
 /**
@@ -56,5 +58,5 @@ case class Query(formula: GslFormula, sid: SID, fromEntailment: Boolean = false,
 }
 
 object Query {
-  def fromEntailment(left: GslFormula, right: GslFormula, sid: SID): Query = Query(Negation(left, right), sid, fromEntailment = true)
+  def fromEntailment(left: GslFormula, right: GslFormula, sid: SID): Query = query.Query(Negation(left, right), sid, fromEntailment = true)
 }

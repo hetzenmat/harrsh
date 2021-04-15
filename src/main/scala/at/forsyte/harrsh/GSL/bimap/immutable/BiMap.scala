@@ -1,11 +1,11 @@
-package at.forsyte.harrsh.GSL
+package at.forsyte.harrsh.GSL.bimap.immutable
 
-import scala.math.Ordering.Tuple2
+import at.forsyte.harrsh.GSL.Utils
 
 /*, missingKeyFunction: K => Option[V] = Function.const(None), missingValueFunction: V => Option[K] = Function.const(None)*/
 
 object BiMap {
-  def from[K, V](tuples: Seq[(K, V)])(implicit ord1: Ordering[K], ord2: Ordering[V]) = new BiMap(tuples.sorted)
+  def from[K, V](tuples: IterableOnce[(K, V)])(implicit ord1: Ordering[K], ord2: Ordering[V]) = new BiMap(tuples.iterator.toSeq.sorted)
 }
 
 class BiMap[K, V] private(val tuples: Seq[(K, V)] /*, val missingKeyFunction: K => Option[V], val missingValueFunction: V => Option[K]*/) {

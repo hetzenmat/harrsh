@@ -2,10 +2,11 @@ package at.forsyte.harrsh.GSL
 
 import GslFormula.Atom._
 import at.forsyte.harrsh.GSL.GslFormula.Atom
+import at.forsyte.harrsh.GSL.SID.SID
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 
 sealed abstract class AbstractSymbolicHeap() {
-  val atoms: Seq[Atom]
+  def atoms: Iterator[Atom]
   final lazy val allVars: Set[Var] = atoms.flatMap(_.vars).toSet.excl(NullConst)
   final lazy val freeVars: Set[Var] = allVars.collect { case a: FreeVar => a }
 
@@ -23,7 +24,7 @@ final case class SymbolicHeap(quantifiedVars: Seq[String],
                               calls: Seq[PredicateCall],
                               equalities: Seq[Equality],
                               disEqualities: Seq[DisEquality]) extends AbstractSymbolicHeap {
-  override val atoms: Seq[Atom] = spatial ++ calls ++ equalities ++ disEqualities
+  override def atoms: Iterator[Atom] = Utils.chainIterators(Seq(spatial.iterator, calls.iterator, equalities.iterator, disEqualities.iterator))
 
   val lalloc: Set[Var] = spatial.map(_.from).toSet
   val lref: Set[Var] = spatial.flatMap(_.to).toSet
@@ -40,7 +41,7 @@ final case class SymbolicHeapBtw(quantifiedVars: Seq[String] = Seq(),
                                  calls: Seq[PredicateCall] = Seq(),
                                  equalities: Seq[Equality] = Seq(),
                                  disEqualities: Seq[DisEquality] = Seq()) extends AbstractSymbolicHeapBtw {
-  override val atoms: Seq[Atom] = pointsTo +: (calls ++ equalities ++ disEqualities)
+  override def atoms: Iterator[Atom] = Utils.chainIterators(Seq(Iterator.single(pointsTo), calls.iterator, equalities.iterator, disEqualities.iterator))
 
   override val isRecursive: Boolean = calls.nonEmpty
 

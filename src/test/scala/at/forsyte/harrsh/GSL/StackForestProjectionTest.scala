@@ -2,7 +2,7 @@ package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.PredicateCall
-import at.forsyte.harrsh.GSL.SID.Rule
+import at.forsyte.harrsh.GSL.SID.SID.Rule
 import at.forsyte.harrsh.GSL.projections.{StackForestProjection, TreeProjection}
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -82,7 +82,7 @@ class StackForestProjectionTest extends AnyFlatSpec {
                                            SortedSet(),
                                            SortedSet(projections.TreeProjection(Seq(), p1)))
 
-    assert(StackForestProjection.composition(sf1, sf2, SIDs.toBtw(SID.buildSID(Seq.empty))).contains(result))
+    assert(StackForestProjection.composition(sf1, sf2, SIDs.toBtw(SID.SID.buildSID(Seq.empty))).contains(result))
   }
 
   it should "correctly compute all rescopings and composition for Example 7.34 (second part)" in {
@@ -107,7 +107,7 @@ class StackForestProjectionTest extends AnyFlatSpec {
 
     assert(StackForestProjection.allRescopings(left, right).contains(result))
 
-    assert(StackForestProjection.composition(left, right, SIDs.toBtw(SID.buildSID(Seq.empty))).contains(new StackForestProjection(SortedSet(), SortedSet(), SortedSet(projections.TreeProjection(Seq(), tll_xyz)))))
+    assert(StackForestProjection.composition(left, right, SIDs.toBtw(SID.SID.buildSID(Seq.empty))).contains(new StackForestProjection(SortedSet(), SortedSet(), SortedSet(projections.TreeProjection(Seq(), tll_xyz)))))
   }
 
   it should "correctly compute all the composition for Example 7.36" in {
@@ -126,11 +126,11 @@ class StackForestProjectionTest extends AnyFlatSpec {
                                            SortedSet(_1),
                                            SortedSet(projections.TreeProjection(Seq(P("odd")(x3, _1)), P("odd")(x1, _1))))
 
-    assert(StackForestProjection.composition(left, right, SIDs.toBtw(SID.buildSID(Seq.empty))).contains(result))
+    assert(StackForestProjection.composition(left, right, SIDs.toBtw(SID.SID.buildSID(Seq.empty))).contains(result))
   }
 
   it should "correctly compute if a projection is delimited" in {
-    SID.buildSID(Seq(Rule("my_ptr", Seq("a", "b"), SymbolicHeap.buildSymbolicHeap(Seq(), Seq(Atom.PointsTo(FreeVar("a"), Seq(FreeVar("b")))))))).toBtw match {
+    SID.SID.buildSID(Seq(Rule("my_ptr", Seq("a", "b"), SymbolicHeap.buildSymbolicHeap(Seq(), Seq(Atom.PointsTo(FreeVar("a"), Seq(FreeVar("b")))))))).toBtw match {
       case Left(_) => fail()
       case Right(sid) =>
 

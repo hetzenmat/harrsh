@@ -2,6 +2,7 @@ package at.forsyte.harrsh.GSL.projections
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{PointsTo, PredicateCall}
+import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.GSL._
 import at.forsyte.harrsh.GSL.projections.StackForestProjection.{boundVariables, freeVariables, varSeq}
 import at.forsyte.harrsh.seplog._

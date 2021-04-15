@@ -1,6 +1,7 @@
 package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.SIDs.parseFormula
+import at.forsyte.harrsh.GSL.query.Query
 import org.scalatest.flatspec.AnyFlatSpec
 
 class ExampleTest extends AnyFlatSpec {
@@ -11,7 +12,7 @@ class ExampleTest extends AnyFlatSpec {
     }
 
     // TODO: verify
-    Query(parseFormula("lseg(x, y) /\\ (lseg(y, z) -o lseg(x, x))"), SIDs.lseg).isSatisfiable match {
+    query.Query(parseFormula("lseg(x, y) /\\ (lseg(y, z) -o lseg(x, x))"), SIDs.lseg).isSatisfiable match {
       case Left(value) => fail(value)
       case Right(value) => assert(value)
     }

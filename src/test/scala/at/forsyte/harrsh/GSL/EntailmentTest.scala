@@ -1,6 +1,8 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL.SID.SID
 import at.forsyte.harrsh.GSL.SIDs.{StringImprovements, parseFormula}
+import at.forsyte.harrsh.GSL.query.Query
 import org.scalatest.flatspec.AnyFlatSpec
 
 class EntailmentTest extends AnyFlatSpec {
@@ -78,12 +80,12 @@ class EntailmentTest extends AnyFlatSpec {
 
   "Type computation" should "correctly decide entailments (even/odd)" in {
     val inputs: Seq[(GslFormula, SID, Boolean)] = Seq(
-//      ("a -> b" |= "odd(a, b)", SIDs.even_odd, true),
-//      ("a -> b" |= "even(a, b)", SIDs.even_odd, false),
-//      ("a -> b * b -> c" |= "even(a, c)", SIDs.even_odd, true),
-//      ("a -> b * b -> c" |= "odd(a, c)", SIDs.even_odd, false),
-//      ("odd(a, b) * b -> c" |= "even(a, c)", SIDs.even_odd, true),
-//      ("odd(a, b) * b -> c" |= "odd(a, c)", SIDs.even_odd, false),
+      //      ("a -> b" |= "odd(a, b)", SIDs.even_odd, true),
+      //      ("a -> b" |= "even(a, b)", SIDs.even_odd, false),
+      //      ("a -> b * b -> c" |= "even(a, c)", SIDs.even_odd, true),
+      //      ("a -> b * b -> c" |= "odd(a, c)", SIDs.even_odd, false),
+      //      ("odd(a, b) * b -> c" |= "even(a, c)", SIDs.even_odd, true),
+      //      ("odd(a, b) * b -> c" |= "odd(a, c)", SIDs.even_odd, false),
       ("odd(a, b) * even(b, c)" |= "odd(a, c)", SIDs.even_odd, true)
       )
 
@@ -112,7 +114,7 @@ class EntailmentTest extends AnyFlatSpec {
       )
 
     for ((negation, sid, expectation) <- inputs) {
-      Query(negation, sid, fromEntailment = true).entailmentHolds match {
+      query.Query(negation, sid, fromEntailment = true).entailmentHolds match {
         case Left(value) => fail(value)
         case Right(value) =>
           assert(value == expectation)

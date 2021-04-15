@@ -1,12 +1,12 @@
-package at.forsyte.harrsh.GSL
+package at.forsyte.harrsh.GSL.SID
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
-import at.forsyte.harrsh.GSL.SID.{Predicate, establishedResultSuccess}
-import at.forsyte.harrsh.GSL.projections.optimized.TreeProjection
+import at.forsyte.harrsh.GSL.SID.SID.{Predicate, establishedResultSuccess}
+import at.forsyte.harrsh.GSL.{AbstractSymbolicHeap, SymbolicHeap, SymbolicHeapBtw}
 import at.forsyte.harrsh.heapautomata.instances.TrackingAutomata
 import at.forsyte.harrsh.refinement.RefinementAlgorithms
-import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 import at.forsyte.harrsh.seplog.inductive.{PointsTo, PredCall, RichSid, SepLogAtom, SidFactory, SymbolicHeap => SH}
+import at.forsyte.harrsh.seplog.{FreeVar, Var}
 
 /**
   * Created by Matthias Hetzenberger on 2021-02-08
@@ -102,40 +102,6 @@ class SID private(val predicates: Map[String, SID.Predicate[SymbolicHeap]]) {
   }
 }
 
-
-final class SID_btw(val predicates: Map[String, SID.Predicate[SymbolicHeapBtw]]) {
-
-  val freeVars: Set[Var] = predicates.values.flatMap(_.freeVars).toSet
-
-  val varBiMap: BiMap[Var, Int] = BiMap.from((NullConst, 0) +: freeVars.excl(NullConst).toSeq.sorted.zipWithIndex.map(t => (t._1, t._2 + 1)))
-  val predBiMap: BiMap[String, Int] = BiMap.from(predicates.keys.toSeq.sorted.zipWithIndex.map(t => (t._1, t._2 + 1)))
-
-  @inline
-  def predicateInt(i: Int): SID.Predicate[SymbolicHeapBtw] = predicates(predBiMap.reverse(i))
-
-  @inline
-  def getRootArgument(predicateCall: TreeProjection.PredicateCall): Int =
-    predicateCall(predicateInt(predicateCall.head).predrootIndex + 1)
-
-  def allRuleInstancesForPointsTo(from: Int, to: Seq[Int], range: Range): Iterable[(Map[Var, Int], RuleInstance)] = {
-
-    val candidates = for (pred <- predicates.values;
-                          rule <- pred.rules if rule.pointsTo.to.length == to.length;
-                          instantiationSize = pred.args.length + rule.quantifiedVars.length;
-                          instantiation <- Utils.allSeqsWithRange(instantiationSize, range);
-                          subst: Map[Var, Int] = (pred.args.map(FreeVar) ++ (1 to rule.quantifiedVars.length).map(BoundVar.apply)).zip(instantiation).toMap) yield (subst, rule.instantiate(pred, instantiation.take(pred.args.length), subst))
-
-    candidates.collect({ case (v, Some(r@RuleInstance(_, _, from_, to_, _))) if from == from_ && to == to_ => (v, r) })
-  }
-
-  override def hashCode(): Int = predicates.hashCode()
-
-  override def equals(obj: Any): Boolean = obj match {
-    case value: SID_btw => predicates == value.predicates
-    case _ => false
-  }
-}
-
 object SID {
 
   private val establishedResultSuccess: Boolean = false
@@ -148,12 +114,12 @@ object SID {
       * If the predicate satisfies progress, predrootIndex >= 0 and -1 otherwise.
       */
     val predrootIndex: Int = {
-      args.indices.find(
-        i => rules.forall {
+      args.indices.find { i =>
+        rules.forall {
           case sh: SymbolicHeap => sh.spatial.size == 1 && sh.spatial.head.from == FreeVar(args(i))
           case sh: SymbolicHeapBtw => sh.pointsTo.from == FreeVar(args(i))
         }
-        ) match {
+      } match {
         case None => -1
         case Some(i) => i
       }
@@ -184,7 +150,3 @@ object SID {
         }
     })
 }
-
-final case class RuleException(private val message: String = "",
-                               private val cause: Throwable = None.orNull)
-  extends Exception(message, cause)
