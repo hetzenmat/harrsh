@@ -66,7 +66,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
 
       val typesExtended = PhiType.extend(acExtendedRestricted, acExtended, types, sid)
 
-      val substMax = ac.domain.map(v => (v, AliasingConstraint.largestAlias(ac, v))).toMap
+      val substMax = Substitution.from(ac.domain.map(v => (v, AliasingConstraint.largestAlias(ac, v))))
       val r = PhiType.rename(parameters ++ parametersPlaceholders.map(_._2), args.asInstanceOf[Seq[FreeVar]] ++ parametersPlaceholders.map(_._1), ac, typesExtended, sid).map(_.substitute(substMax))
 
       Utils.debugRequire(Utils.isCanonical(r, ac))

@@ -7,6 +7,7 @@ import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 
 sealed abstract class AbstractSymbolicHeap() {
   def atoms: Iterator[Atom]
+
   final lazy val allVars: Set[Var] = atoms.flatMap(_.vars).toSet.excl(NullConst)
   final lazy val freeVars: Set[Var] = allVars.collect { case a: FreeVar => a }
 
@@ -45,7 +46,7 @@ final case class SymbolicHeapBtw(quantifiedVars: Seq[String] = Seq(),
 
   override val isRecursive: Boolean = calls.nonEmpty
 
-  def substitute(subst: Map[Var, Var]): SymbolicHeapBtw = {
+  def substitute(subst: Substitution[Var]): SymbolicHeapBtw = {
     SymbolicHeapBtw(quantifiedVars = quantifiedVars,
                     pointsTo = pointsTo.substitute(subst),
                     calls = calls.map(_.substitute(subst)),
@@ -57,7 +58,7 @@ final case class SymbolicHeapBtw(quantifiedVars: Seq[String] = Seq(),
     require(!freeVars.contains(subst))
     require(quantifiedVars.nonEmpty)
 
-    val ren: Map[Var, Var] = Map((BoundVar(quantifiedVars.size), subst))
+    val ren: Substitution[Var] = Substitution.singleton((BoundVar(quantifiedVars.size), subst))
 
     SymbolicHeapBtw(quantifiedVars.dropRight(1),
                     pointsTo.substitute(ren),
@@ -90,7 +91,7 @@ final case class SymbolicHeapBtw(quantifiedVars: Seq[String] = Seq(),
 object SymbolicHeap {
   def buildSymbolicHeap(quantifiedVars: Seq[String], atoms: Seq[Atom]): SymbolicHeap = {
 
-    val boundRenaming: Map[Var, Var] = quantifiedVars.zipWithIndex.map({ case (v, i) => (FreeVar(v), BoundVar(i + 1)) }).toMap
+    val boundRenaming: Substitution[Var] = Substitution.from(quantifiedVars.zipWithIndex.map({ case (v, i) => (FreeVar(v), BoundVar(i + 1)) }))
     val renamedAtoms: Seq[Atom#T] = atoms.map(_.substitute(boundRenaming))
 
     SymbolicHeap(quantifiedVars,

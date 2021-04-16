@@ -43,7 +43,7 @@ case class PhiType private(projections: SortedSet[StackForestProjection]) extend
     scala.Ordering.Implicits.sortedSetOrdering[SortedSet, StackForestProjection].compare(this.projections, that.projections)
   }
 
-  def substitute(subst: Map[Var, Var]): PhiType = PhiType(SortedSet.from(projections.map(_.substitute(subst))))
+  def substitute(subst: Substitution[Var]): PhiType = PhiType(SortedSet.from(projections.map(_.substitute(subst))))
 
 }
 
@@ -101,7 +101,7 @@ object PhiType {
     require(y.toSet[Var].subsetOf(ac.domain))
 
     val yMax = y.map(v => AliasingConstraint.largestAlias(ac, v))
-    val subst: Map[Var, Var] = x.zip(yMax).toMap
+    val subst: Substitution[Var] = Substitution.from(x.zip(yMax))
     types.flatMap(t => PhiType.from(t.projections.map(_.substitute(subst)), sid, ac))
   }
 
@@ -114,7 +114,7 @@ object PhiType {
 
     val y = ac.partition.map(_.max)
     val yReplaced = y.map(v => AliasingConstraint.largestAlias(acSup, v))
-    val subst: Map[Var, Var] = y.zip(yReplaced).toMap
+    val subst: Substitution[Var] = Substitution.from(y.zip(yReplaced))
 
     // TODO: Recheck definition
     val z = acSup.partition.map(_.max).filter(z_ => ac.domain.forall(y => acSup =/= (y, z_))).asInstanceOf[Seq[FreeVar]]
@@ -165,14 +165,13 @@ object PhiType {
             val bv = LazyList.from(1).map(BoundVar.apply)
             val univVars = univAC.partition.map(_.max)
             val univSubst: Map[Var, Var] = univVars.sorted.zip(bv).toMap
-            val subst: Map[Var, Var] = universals.toSeq.sorted.map(v => (v, univSubst(AliasingConstraint.largestAlias(univAC, v)))).foldLeft(replacement)({
-              case (map, (v1, v2)) =>
-                require(!map.contains(v1))
+            val subst: Substitution[Var] = Substitution.from(replacement)
 
-                map.updated(v1, v2)
-            })
+            universals.foreach { v =>
+              subst.add(v, univSubst(AliasingConstraint.largestAlias(univAC, v)))
+            }
 
-            def ruleSatisfiable(subst: Map[Var, Var]): Boolean = {
+            def ruleSatisfiable(subst: Substitution[Var]): Boolean = {
               def eqHolds(eq: Equality): Boolean = (subst(eq.left), subst(eq.right)) match {
                 case (l: BoundVar, r: BoundVar) => l == r
                 case (l: FreeVar, r: FreeVar) => l == r
@@ -189,7 +188,7 @@ object PhiType {
             if (toAssign.isEmpty) {
 
               val tp = TreeProjection(rule.calls.map(_.substitute(subst)).sorted,
-                                      PredicateCall(pred.name, pred.args.map(FreeVar).map(subst)))
+                                      PredicateCall(pred.name, pred.args.map(FreeVar).map(subst.apply)))
 
               if (!ruleSatisfiable(subst)) Seq()
               else Seq(Some(new StackForestProjection(SortedSet.empty,
@@ -197,17 +196,13 @@ object PhiType {
                                                       SortedSet.from(Seq(tp)))))
             } else {
               (for (assignment <- Utils.allAssignments(toAssign.toSeq.sorted, partitions)) yield {
-                val substAll: Map[Var, Var] = assignment.foldLeft(subst)({
-                  case (map, (v1, v2)) =>
-                    require(!map.contains(v1))
 
-                    map.updated(v1, v2)
-                })
+                subst.addAll(assignment)
 
-                val tp = GSL.projections.TreeProjection(rule.calls.map(_.substitute(substAll)).sorted,
-                                        PredicateCall(pred.name, pred.args.map(FreeVar).map(substAll)))
+                val tp = GSL.projections.TreeProjection(rule.calls.map(_.substitute(subst)).sorted,
+                                                        PredicateCall(pred.name, pred.args.map(FreeVar).map(subst.apply)))
 
-                if (!ruleSatisfiable(substAll)) None
+                if (!ruleSatisfiable(subst)) None
                 else Some(new StackForestProjection(SortedSet.empty,
                                                     SortedSet.from(bv.take(univVars.size)),
                                                     SortedSet.from(Seq(tp))))

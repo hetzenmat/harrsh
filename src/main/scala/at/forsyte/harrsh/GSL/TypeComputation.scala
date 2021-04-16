@@ -140,7 +140,7 @@ object TypeComputation {
     if (ac =:= (pointsTo.from, NullConst)) {
       Set.empty
     } else {
-      val r = Set(PhiType.ptrmodel(sid, ac, pointsTo).substitute(ac.domain.map(v => (v, AliasingConstraint.largestAlias(ac, v))).toMap))
+      val r = Set(PhiType.ptrmodel(sid, ac, pointsTo).substitute(Substitution.from(ac.domain.map(v => (v, AliasingConstraint.largestAlias(ac, v))))))
       r
     }
 }
