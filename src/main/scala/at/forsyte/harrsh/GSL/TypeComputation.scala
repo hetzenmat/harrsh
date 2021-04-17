@@ -2,15 +2,13 @@ package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{DisEquality, Equality, PointsTo, PredicateCall}
-import at.forsyte.harrsh.GSL.SID.SID_btw
+import at.forsyte.harrsh.GSL.query.QueryContext.sid
 import at.forsyte.harrsh.seplog.{FreeVar, NullConst, Var}
 import com.typesafe.scalalogging.LazyLogging
 
-import java.util.Scanner
+class TypeComputation(val formula: GslFormula) extends LazyLogging {
 
-class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLogging {
-
-  val predicateTypes = new PredicateTypes(sid, formula.freeVars)
+  val predicateTypes = new PredicateTypes(formula.freeVars)
 
   sealed trait Quantifier {
     def test[A](coll: Iterable[A], p: A => Boolean): Boolean
@@ -33,7 +31,7 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
     val leftTypes = types(left, ac)
     val rightTypes = types(right, ac)
 
-    guardTypes.filter(phiType => q.test(leftTypes, (leftType: PhiType) => PhiType.composition(sid, phiType, leftType, ac) match {
+    guardTypes.filter(phiType => q.test(leftTypes, (leftType: PhiType) => PhiType.composition(phiType, leftType, ac) match {
       case Some(compositionType) => rightTypes contains compositionType
       case None => false
     }))
@@ -56,18 +54,18 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
       case Atom.Emp() => Set(PhiType.empty)
       case e: Equality => TypeComputation.equality(e, ac)
       case d: DisEquality => TypeComputation.disEquality(d, ac)
-      case p: PointsTo => TypeComputation.pointsTo(p, ac, sid)
+      case p: PointsTo => TypeComputation.pointsTo(p, ac)
       case PredicateCall(predName, args) =>
         val pred = sid.predicates(predName)
         val types = predicateTypes.getTypeLazy(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))
 
-        PhiType.rename(pred.args.map(FreeVar), args, ac, types, sid).toSet
+        PhiType.rename(pred.args.map(FreeVar), args, ac, types).toSet
     }
     case GslFormula.SeparatingConjunction(left, right) =>
       val leftTypes = types(left, ac)
       val rightTypes = types(right, ac)
 
-      val composition = PhiType.composition(sid, leftTypes, rightTypes, ac).toSet
+      val composition = PhiType.composition(leftTypes, rightTypes, ac).toSet
 
       println(gslFormula)
       println(leftTypes)
@@ -121,9 +119,9 @@ class TypeComputation(val sid: SID_btw, val formula: GslFormula) extends LazyLog
       val rSorted = r.toSeq.sorted
       println("Result: " + rSorted)
 
-//      val s = new Scanner(System.in)
-//      println("Enter to continue")
-//      s.nextLine()
+      //      val s = new Scanner(System.in)
+      //      println("Enter to continue")
+      //      s.nextLine()
 
       r
     case GslFormula.MagicWand(guard, left, right) => magicWandSeptractionHelper(Forall, ac, guard, left, right)
@@ -136,11 +134,11 @@ object TypeComputation {
 
   def disEquality(disEq: DisEquality, ac: AliasingConstraint[Var]): Set[PhiType] = if (ac =:= (disEq.left, disEq.right)) Set() else Set(PhiType.empty)
 
-  def pointsTo(pointsTo: PointsTo, ac: AliasingConstraint[Var], sid: SID_btw): Set[PhiType] =
+  def pointsTo(pointsTo: PointsTo, ac: AliasingConstraint[Var]): Set[PhiType] =
     if (ac =:= (pointsTo.from, NullConst)) {
       Set.empty
     } else {
-      val r = Set(PhiType.ptrmodel(sid, ac, pointsTo).substitute(Substitution.from(ac.domain.map(v => (v, AliasingConstraint.largestAlias(ac, v))))))
+      val r = Set(PhiType.ptrmodel(ac, pointsTo).substitute(Substitution.from(ac.domain.map(v => (v, AliasingConstraint.largestAlias(ac, v))))))
       r
     }
 }

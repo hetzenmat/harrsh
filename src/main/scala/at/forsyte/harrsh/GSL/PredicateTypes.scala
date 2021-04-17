@@ -6,6 +6,7 @@ import at.forsyte.harrsh.GSL.SID.SID.Predicate
 import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.seplog.{FreeVar, NullConst, Var}
 import com.typesafe.scalalogging.LazyLogging
+import at.forsyte.harrsh.GSL.query.QueryContext.sid
 
 import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -25,7 +26,7 @@ object PredicateTypes {
   }
 }
 
-class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
+class PredicateTypes(val x: Set[Var]) extends LazyLogging {
 
   private type LookupFunction = (Predicate[SymbolicHeapBtw], AliasingConstraint[Var]) => Iterable[PhiType]
 
@@ -43,7 +44,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
   def ptypes(atom: Atom, ac: AliasingConstraint[Var], lookup: LookupFunction): Iterable[PhiType] = atom match {
     case e: Equality => TypeComputation.equality(e, ac)
     case d: DisEquality => TypeComputation.disEquality(d, ac)
-    case p: PointsTo => TypeComputation.pointsTo(p, ac, sid)
+    case p: PointsTo => TypeComputation.pointsTo(p, ac)
     case PredicateCall(predName, args) =>
       val pred = sid.predicates(predName)
 
@@ -67,7 +68,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       val typesExtended = PhiType.extend(acExtendedRestricted, acExtended, types, sid)
 
       val substMax = Substitution.from(ac.domain.map(v => (v, AliasingConstraint.largestAlias(ac, v))))
-      val r = PhiType.rename(parameters ++ parametersPlaceholders.map(_._2), args.asInstanceOf[Seq[FreeVar]] ++ parametersPlaceholders.map(_._1), ac, typesExtended, sid).map(_.substitute(substMax))
+      val r = PhiType.rename(parameters ++ parametersPlaceholders.map(_._2), args.asInstanceOf[Seq[FreeVar]] ++ parametersPlaceholders.map(_._1), ac, typesExtended).map(_.substitute(substMax))
 
       Utils.debugRequire(Utils.isCanonical(r, ac))
 
@@ -80,7 +81,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
     val atom = atoms.next()
     val types = ptypes(atom, ac, lookup)
 
-    if (atoms.hasNext) PhiType.composition(sid, ptypes(atom, ac, lookup), ptypes(atoms, ac, lookup), ac)
+    if (atoms.hasNext) PhiType.composition(ptypes(atom, ac, lookup), ptypes(atoms, ac, lookup), ac)
     else types
   }
 
@@ -97,7 +98,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       allExtensions.flatMap(ac_ => {
         val types = ptypes(sh.dropFirstQuantifiedVar(fresh), ac_, lookup)
 
-        val r = PhiType.forget(sid, ac_, fresh, types)
+        val r = PhiType.forget(ac_, fresh, types)
         r
       })
     } else ptypes(sh.atoms, ac, lookup)
@@ -118,7 +119,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       val ret = table(it)((pred.name, ac))
 
       Utils.debugRequire(Utils.isCanonical(ret, ac))
-      Utils.debugRequire(ret.flatMap(_.projections).forall(_.isDelimited(sid)))
+      Utils.debugRequire(ret.flatMap(_.projections).forall(_.isDelimited))
 
       ret
     } else {
@@ -144,7 +145,7 @@ class PredicateTypes(val sid: SID_btw, val x: Set[Var]) extends LazyLogging {
       val ret = table(it)((pred.name, ac))
 
       Utils.debugRequire(Utils.isCanonical(ret, ac))
-      Utils.debugRequire(ret.flatMap(_.projections).forall(_.isDelimited(sid)))
+      Utils.debugRequire(ret.flatMap(_.projections).forall(_.isDelimited))
 
       if (ret.size > unfoldLazy(it - 1, pred, ac).size)
         changed = true

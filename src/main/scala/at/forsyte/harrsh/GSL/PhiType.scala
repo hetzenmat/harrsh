@@ -4,7 +4,9 @@ import at.forsyte.harrsh.GSL
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{Equality, PointsTo, PredicateCall}
 import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.GSL.projections.{StackForestProjection, TreeProjection, optimized}
+import at.forsyte.harrsh.GSL.query.QueryContext
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
+import QueryContext.sid
 
 import scala.collection.SortedSet
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -14,28 +16,28 @@ import scala.concurrent.{Await, Future}
 /**
   * Created by Matthias Hetzenberger on 2021-02-13
   */
-case class PhiType private(projections: SortedSet[StackForestProjection]) extends Ordered[PhiType] {
+class PhiType private(val projections: SortedSet[StackForestProjection]) extends Ordered[PhiType] {
 
-  def alloced(sid: SID_btw): Set[FreeVar] = projections.unsorted.
-                                                       flatMap(_.formula)
-                                                       .map(_.rootpred)
-                                                       .map(c => c.args(sid.predicates(c.pred).predrootIndex)).asInstanceOf[Set[FreeVar]]
+  lazy val alloced: Set[FreeVar] = projections.unsorted.
+                                              flatMap(_.formula)
+                                              .map(_.rootpred)
+                                              .map(c => c.args(sid.predicates(c.pred).predrootIndex)).asInstanceOf[Set[FreeVar]]
 
-  def freeVars: SortedSet[FreeVar] = projections.flatMap(_.freeVars)
+  lazy val freeVars: SortedSet[FreeVar] = projections.flatMap(_.freeVars)
 
-  def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint[Var], sid: SID_btw): PhiType = {
-    PhiType.rename(x, y, ac, Set(this), sid).head
+  def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint[Var]): PhiType = {
+    PhiType.rename(x, y, ac, Set(this)).head
   }
 
-  def forget(ac: AliasingConstraint[Var], x: FreeVar, sid: SID_btw): Option[PhiType] = {
-    PhiType.from(projections.map(_.forget(ac, x)).filter(_.isDelimited(sid)), sid, ac)
+  def forget(ac: AliasingConstraint[Var], x: FreeVar): Option[PhiType] = {
+    PhiType.from(projections.map(_.forget(ac, x)).filter(_.isDelimited), ac)
   }
 
-  def extend(x: FreeVar, sid: SID_btw, ac: AliasingConstraint[Var]): Option[PhiType] = {
-    PhiType.from(projections ++ projections.flatMap(_.extend(x)), sid, ac)
+  def extend(x: FreeVar, ac: AliasingConstraint[Var]): Option[PhiType] = {
+    PhiType.from(projections ++ projections.flatMap(_.extend(x)), ac)
   }
 
-  def extend(ac: AliasingConstraint[Var], acSup: AliasingConstraint[Var], sid: SID_btw): PhiType = {
+  def extend(ac: AliasingConstraint[Var], acSup: AliasingConstraint[Var]): PhiType = {
     PhiType.extend(ac, acSup, Set(this), sid).head
   }
 
@@ -43,50 +45,56 @@ case class PhiType private(projections: SortedSet[StackForestProjection]) extend
     scala.Ordering.Implicits.sortedSetOrdering[SortedSet, StackForestProjection].compare(this.projections, that.projections)
   }
 
-  def substitute(subst: Substitution[Var]): PhiType = PhiType(SortedSet.from(projections.map(_.substitute(subst))))
+  def substitute(subst: Substitution[Var]): PhiType = new PhiType(SortedSet.from(projections.map(_.substitute(subst))))
 
+  override def equals(obj: Any): Boolean = obj match {
+    case v: PhiType => v.projections == projections
+  }
+
+  override def hashCode(): Int = projections.hashCode()
 }
 
 object PhiType {
 
-  def from(it: Iterable[StackForestProjection], sid: SID_btw, ac: AliasingConstraint[Var]): Option[PhiType] = {
+  def unapply(t: PhiType): Option[SortedSet[StackForestProjection]] = Some(t.projections)
 
-    Utils.debugRequire(it.forall(_.isDelimited(sid)))
+  def from(it: Iterable[StackForestProjection], ac: AliasingConstraint[Var]): Option[PhiType] = {
 
+    Utils.debugRequire(it.forall(_.isDelimited))
 
     if (it.isEmpty /*|| it.exists(!_.isDelimited(sid))*/ ) {
       // TODO: Really return None if empty?
       None
     } else {
-      Some(PhiType(SortedSet.from(it.flatMap(_.impliedSet(sid)))))
+      Some(new PhiType(SortedSet.from(it.flatMap(_.impliedSet))))
     }
   }
 
-  def empty: PhiType = PhiType(SortedSet.from(Seq(StackForestProjection.empty)))
+  def empty: PhiType = new PhiType(SortedSet.from(Seq(StackForestProjection.empty)))
 
-  def composition(sid: SID_btw, left: PhiType, right: PhiType, ac: AliasingConstraint[Var]): Option[PhiType] = {
+  def composition(left: PhiType, right: PhiType, ac: AliasingConstraint[Var]): Option[PhiType] = {
     Utils.debugRequire(Utils.isCanonical(left, ac))
     Utils.debugRequire(Utils.isCanonical(right, ac))
 
-    if ((left.alloced(sid) intersect right.alloced(sid)).isEmpty) {
+    if ((left.alloced intersect right.alloced).isEmpty) {
 
       val projections = for (phi1 <- left.projections.unsorted;
                              phi2 <- right.projections.unsorted) yield {
-        StackForestProjection.composition(phi1, phi2, sid)
+        StackForestProjection.composition(phi1, phi2)
       }
 
-      PhiType.from(projections.flatten.filter(_.isDelimited(sid)), sid, ac)
+      PhiType.from(projections.flatten.filter(_.isDelimited), ac)
     } else {
       None
     }
   }
 
-  def composition(sid: SID_btw, left: Iterable[PhiType], right: Iterable[PhiType], ac: AliasingConstraint[Var]): Iterable[PhiType] = {
+  def composition(left: Iterable[PhiType], right: Iterable[PhiType], ac: AliasingConstraint[Var]): Iterable[PhiType] = {
 
     val futures: Iterable[Future[Option[PhiType]]] =
       for (l <- left;
            r <- right) yield Future {
-        composition(sid, l, r, ac)
+        composition(l, r, ac)
       }
 
     Await.result(Future.sequence(futures), Duration.Inf).flatten
@@ -95,19 +103,19 @@ object PhiType {
     //          r <- right) yield composition(sid, l, r, ac)).flatten
   }
 
-  def rename(x: Seq[Var], y: Seq[Var], ac: AliasingConstraint[Var], types: Iterable[PhiType], sid: SID_btw): Iterable[PhiType] = {
+  def rename(x: Seq[Var], y: Seq[Var], ac: AliasingConstraint[Var], types: Iterable[PhiType]): Iterable[PhiType] = {
     require(x.length == y.length)
     require(x.length == x.toSet.size)
     require(y.toSet[Var].subsetOf(ac.domain))
 
     val yMax = y.map(v => AliasingConstraint.largestAlias(ac, v))
     val subst: Substitution[Var] = Substitution.from(x.zip(yMax))
-    types.flatMap(t => PhiType.from(t.projections.map(_.substitute(subst)), sid, ac))
+    types.flatMap(t => PhiType.from(t.projections.map(_.substitute(subst)), ac))
   }
 
-  def forget(sid: SID_btw, ac: AliasingConstraint[Var], x: FreeVar, types: Iterable[PhiType]): Iterable[PhiType] = types.flatMap(_.forget(ac, x, sid))
+  def forget(ac: AliasingConstraint[Var], x: FreeVar, types: Iterable[PhiType]): Iterable[PhiType] = types.flatMap(_.forget(ac, x))
 
-  def extend(x: FreeVar, types: Iterable[PhiType], sid: SID_btw, ac: AliasingConstraint[Var]): Iterable[PhiType] = types.flatMap(_.extend(x, sid, ac))
+  def extend(x: FreeVar, types: Iterable[PhiType], ac: AliasingConstraint[Var]): Iterable[PhiType] = types.flatMap(_.extend(x, ac)) // TODO order x ac
 
   def extend(ac: AliasingConstraint[Var], acSup: AliasingConstraint[Var], types: Iterable[PhiType], sid: SID_btw): Iterable[PhiType] = {
     require(ac.subsetOf(acSup))
@@ -117,7 +125,7 @@ object PhiType {
     val subst: Substitution[Var] = Substitution.from(y.zip(yReplaced))
 
     // TODO: Recheck definition
-    val z = acSup.partition.map(_.max).filter(z_ => ac.domain.forall(y => acSup =/= (y, z_))).asInstanceOf[Seq[FreeVar]]
+    val z = acSup.partition.map(_.max).filter(z_ => ac.domain.forall(y => acSup =/= (y, z_))).asInstanceOf[IndexedSeq[FreeVar]]
 
     if (ac.partition.size != acSup.partition.size && types.nonEmpty) {
       print("")
@@ -125,9 +133,9 @@ object PhiType {
 
     val r = types.flatMap({ case PhiType(projections) =>
       def aux: Int => Option[PhiType] = {
-        case 0 => PhiType.from(projections.map(_.substitute(subst)), sid, acSup)
+        case 0 => PhiType.from(projections.map(_.substitute(subst)), acSup)
         case n => aux(n - 1) match {
-          case Some(value) => value.extend(z(n - 1), sid, acSup)
+          case Some(value) => value.extend(z(n - 1), acSup)
           case None => None
         }
       }
@@ -197,12 +205,13 @@ object PhiType {
             } else {
               (for (assignment <- Utils.allAssignments(toAssign.toSeq.sorted, partitions)) yield {
 
-                subst.addAll(assignment)
+                val substAll = subst.clone()
+                substAll.addAll(assignment)
 
-                val tp = GSL.projections.TreeProjection(rule.calls.map(_.substitute(subst)).sorted,
-                                                        PredicateCall(pred.name, pred.args.map(FreeVar).map(subst.apply)))
+                val tp = GSL.projections.TreeProjection(rule.calls.map(_.substitute(substAll)).sorted,
+                                                        PredicateCall(pred.name, pred.args.map(FreeVar).map(substAll.apply)))
 
-                if (!ruleSatisfiable(subst)) None
+                if (!ruleSatisfiable(substAll)) None
                 else Some(new StackForestProjection(SortedSet.empty,
                                                     SortedSet.from(bv.take(univVars.size)),
                                                     SortedSet.from(Seq(tp))))
@@ -215,10 +224,10 @@ object PhiType {
       result
     }).flatten.flatten.toSet
 
-    PhiType.from(projections.filter(_.isDelimited(sid)), sid, ac).get
+    PhiType.from(projections.filter(_.isDelimited), ac).get
   }
 
-  def ptrmodel(sid: SID_btw, ac: AliasingConstraint[Var], pointsTo: PointsTo): PhiType = {
+  def ptrmodel(ac: AliasingConstraint[Var], pointsTo: PointsTo): PhiType = {
 
     val pm = pointsTo.ptrmodel(ac.restricted(pointsTo.vars.incl(NullConst)))
 
@@ -228,13 +237,9 @@ object PhiType {
 
     val types = R.map({
       case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm, pointsTo)
-    }).filter(_.isDelimited(sid))
+    }).filter(_.isDelimited)
 
-    val r = PhiType.from(types, sid, ac)
-
-    if (r.get.projections.exists(p => p.guardedUniversals.nonEmpty) || r.get.projections.exists(_.guardedExistentials.nonEmpty)) {
-      print("")
-    }
+    val r = PhiType.from(types, ac)
 
     val _2 = ptrmodel2(sid, ac, pointsTo)
 
