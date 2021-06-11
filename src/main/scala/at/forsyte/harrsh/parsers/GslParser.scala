@@ -163,7 +163,7 @@ class GslParser(val input: ParserInput) extends Parser {
       ws('(') ~ _SeparatingConjunction ~ ws(')')
   }
 
-  private def _Emp: Rule1[Atom.Emp] = rule(ws("emp") ~ push(GslFormula.Atom.Emp()))
+  private def _Emp: Rule1[Atom.Emp.type] = rule(ws("emp") ~ push(GslFormula.Atom.Emp))
 
   private def _Equality: Rule1[Atom.Equality] = rule {
     _Var ~ (ws("=") ~ _Var) ~> ((left: Var, right: Var) => Equality(left, right))

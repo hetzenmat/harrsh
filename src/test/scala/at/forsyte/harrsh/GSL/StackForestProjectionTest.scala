@@ -37,43 +37,43 @@ class StackForestProjectionTest extends AnyFlatSpec with PrivateMethodTester {
     val (x1, x2, x3) = (FreeVar("x1"), FreeVar("x2"), FreeVar("x3"))
 
     setSID(SIDs.ls)
-    val left = new StackForestProjection(SortedSet(), SortedSet(), SortedSet(TreeProjection(Seq(P("ls")(x2, x3)), P("ls")(x1, x3))))
-    val right = new StackForestProjection(SortedSet(), SortedSet(), SortedSet(projections.TreeProjection(Seq(), P("ls")(x2, x3))))
+    val left = new StackForestProjection(SortedSet(), SortedSet(), Seq(TreeProjection(Seq(P("ls")(x2, x3)), P("ls")(x1, x3))))
+    val right = new StackForestProjection(SortedSet(), SortedSet(), Seq(projections.TreeProjection(Seq(), P("ls")(x2, x3))))
 
-    assert(StackForestProjection.composition(left, right).contains(new StackForestProjection(SortedSet(), SortedSet(), SortedSet(projections.TreeProjection(Seq(), P("ls")(x1, x3))))))
+    assert(StackForestProjection.composition(left, right).contains(new StackForestProjection(SortedSet(), SortedSet(), Seq(projections.TreeProjection(Seq(), P("ls")(x1, x3))))))
   }
 
   it should "correctly compute all rescopings and composition for Example 7.33 (second part)" in {
     val (x1, x2, x3) = (FreeVar("x1"), FreeVar("x2"), FreeVar("x3"))
 
     setSID(SIDs.ls)
-    val left = new StackForestProjection(SortedSet(), SortedSet(_1), SortedSet(projections.TreeProjection(Seq(P("ls")(x2, _1)), P("ls")(x1, _1))))
-    val right = new StackForestProjection(SortedSet(), SortedSet(_1), SortedSet(projections.TreeProjection(Seq(P("ls")(x3, _1)), P("ls")(x2, _1))))
+    val left = new StackForestProjection(SortedSet(), SortedSet(_1), Seq(projections.TreeProjection(Seq(P("ls")(x2, _1)), P("ls")(x1, _1))))
+    val right = new StackForestProjection(SortedSet(), SortedSet(_1), Seq(projections.TreeProjection(Seq(P("ls")(x3, _1)), P("ls")(x2, _1))))
 
-    assert(StackForestProjection.composition(left, right).contains(new StackForestProjection(SortedSet(), SortedSet(_1), SortedSet(projections.TreeProjection(Seq(P("ls")(x3, _1)), P("ls")(x1, _1))))))
+    assert(StackForestProjection.composition(left, right).contains(new StackForestProjection(SortedSet(), SortedSet(_1), Seq(projections.TreeProjection(Seq(P("ls")(x3, _1)), P("ls")(x1, _1))))))
   }
 
   it should "correctly compute all rescopings and composition for Example 7.34 (first part)" in {
     setSID(SIDs.lseg)
     val left = new StackForestProjection(SortedSet(_1),
                                          SortedSet(),
-                                         SortedSet(projections.TreeProjection(Seq(P("lseg")(y, _1)), P("cyclic")(x, y, z)),
-                                                   projections.TreeProjection(Seq(), P("lseg")(z, _1))))
+                                         Seq(projections.TreeProjection(Seq(P("lseg")(y, _1)), P("cyclic")(x, y, z)),
+                                                   projections.TreeProjection(Seq(), P("lseg")(z, _1))).sorted)
 
     val right = new StackForestProjection(SortedSet(),
                                           SortedSet(_1),
-                                          SortedSet(projections.TreeProjection(Seq(P("lseg")(z, _1)), P("lseg")(y, _1))))
+                                          Seq(projections.TreeProjection(Seq(P("lseg")(z, _1)), P("lseg")(y, _1))))
 
     val result = new StackForestProjection(SortedSet(_1),
                                            SortedSet(),
-                                           left.formula ++ right.formula)
+                                           (left.formula ++ right.formula).sorted)
 
     val allRescopings = StackForestProjection.allRescopings(left, right)
     assert(allRescopings.contains(result))
 
-    assert(allRescopings.flatMap(_.derivableSet).exists(_.formula == SortedSet(projections.TreeProjection(Seq(), P("cyclic")(x, y, z)))))
+    assert(allRescopings.flatMap(_.derivableSet).exists(_.formula == Seq(projections.TreeProjection(Seq(), P("cyclic")(x, y, z)))))
 
-    assert(StackForestProjection.composition(left, right).exists(_.formula == SortedSet(projections.TreeProjection(Seq(), P("cyclic")(x, y, z)))))
+    assert(StackForestProjection.composition(left, right).exists(_.formula == Seq(projections.TreeProjection(Seq(), P("cyclic")(x, y, z)))))
   }
 
   it should "correctly compute composition of Example 10.30 in 'Dissertation Pagel'" in {
@@ -86,14 +86,14 @@ class StackForestProjectionTest extends AnyFlatSpec with PrivateMethodTester {
     val ptr = P("ptr")(x2, _1)
 
     val sf1 = new StackForestProjection(SortedSet(_1), SortedSet(),
-                                        SortedSet(projections.TreeProjection(Seq(p2), p1),
-                                                  projections.TreeProjection(Seq(), ptr)))
+                                        Seq(projections.TreeProjection(Seq(p2), p1),
+                                                  projections.TreeProjection(Seq(), ptr)).sorted)
     val sf2 = new StackForestProjection(SortedSet(), SortedSet(_1),
-                                        SortedSet(projections.TreeProjection(Seq(ptr), p2)))
+                                        Seq(projections.TreeProjection(Seq(ptr), p2)))
 
     val result = new StackForestProjection(SortedSet(),
                                            SortedSet(),
-                                           SortedSet(projections.TreeProjection(Seq(), p1)))
+                                           Seq(projections.TreeProjection(Seq(), p1)))
 
     assert(StackForestProjection.composition(sf1, sf2).contains(result))
   }
@@ -108,21 +108,21 @@ class StackForestProjectionTest extends AnyFlatSpec with PrivateMethodTester {
 
     val left = new StackForestProjection(SortedSet(_1),
                                          SortedSet(),
-                                         SortedSet(projections.TreeProjection(Seq(tll_abc), tll_xyz),
+                                         Seq(projections.TreeProjection(Seq(tll_abc), tll_xyz),
                                                    projections.TreeProjection(Seq(), ptr_bc),
-                                                   projections.TreeProjection(Seq(), ptr_cr)))
+                                                   projections.TreeProjection(Seq(), ptr_cr)).sorted)
 
     val right = new StackForestProjection(SortedSet(),
                                           SortedSet(_1),
-                                          SortedSet(projections.TreeProjection(Seq(ptr_bc, ptr_cr), tll_abc)))
+                                          Seq(projections.TreeProjection(Seq(ptr_bc, ptr_cr), tll_abc)))
 
     val result = new StackForestProjection(SortedSet(_1),
                                            SortedSet(),
-                                           left.formula ++ right.formula)
+                                           (left.formula ++ right.formula).sorted)
 
     assert(StackForestProjection.allRescopings(left, right).contains(result))
 
-    assert(StackForestProjection.composition(left, right).contains(new StackForestProjection(SortedSet(), SortedSet(), SortedSet(projections.TreeProjection(Seq(), tll_xyz)))))
+    assert(StackForestProjection.composition(left, right).contains(new StackForestProjection(SortedSet(), SortedSet(), Seq(projections.TreeProjection(Seq(), tll_xyz)))))
   }
 
   it should "correctly compute all the composition for Example 7.36" in {
@@ -133,15 +133,15 @@ class StackForestProjectionTest extends AnyFlatSpec with PrivateMethodTester {
 
     val left = new StackForestProjection(SortedSet(),
                                          SortedSet(_1),
-                                         SortedSet(projections.TreeProjection(Seq(P("even")(x2, _1)), P("odd")(x1, _1))))
+                                         Seq(projections.TreeProjection(Seq(P("even")(x2, _1)), P("odd")(x1, _1))))
 
     val right = new StackForestProjection(SortedSet(),
                                           SortedSet(_1),
-                                          SortedSet(projections.TreeProjection(Seq(P("odd")(x3, _1)), P("even")(x2, _1))))
+                                          Seq(projections.TreeProjection(Seq(P("odd")(x3, _1)), P("even")(x2, _1))))
 
     val result = new StackForestProjection(SortedSet(),
                                            SortedSet(_1),
-                                           SortedSet(projections.TreeProjection(Seq(P("odd")(x3, _1)), P("odd")(x1, _1))))
+                                           Seq(projections.TreeProjection(Seq(P("odd")(x3, _1)), P("odd")(x1, _1))))
 
     assert(StackForestProjection.composition(left, right).contains(result))
   }
@@ -149,15 +149,15 @@ class StackForestProjectionTest extends AnyFlatSpec with PrivateMethodTester {
   it should "correctly compute if a projection is delimited" in {
     setSID(SID.buildSID(Seq(Rule("my_ptr", Seq("a", "b"), SymbolicHeap.buildSymbolicHeap(Seq(), Seq(Atom.PointsTo(FreeVar("a"), Seq(FreeVar("b")))))))))
 
-    val sfp1 = new StackForestProjection(SortedSet(), SortedSet(), SortedSet(projections.TreeProjection(Seq(P("my_ptr")(a, b)), P("my_ptr")(b, c))))
+    val sfp1 = new StackForestProjection(SortedSet(), SortedSet(), Seq(projections.TreeProjection(Seq(P("my_ptr")(a, b)), P("my_ptr")(b, c))))
 
     assert(sfp1.isDelimited)
 
-    val sfp2 = new StackForestProjection(SortedSet(), SortedSet(), SortedSet(projections.TreeProjection(Seq(P("my_ptr")(a, b), P("my_ptr")(a, c)), P("my_ptr")(b, c))))
+    val sfp2 = new StackForestProjection(SortedSet(), SortedSet(), Seq(projections.TreeProjection(Seq(P("my_ptr")(a, b), P("my_ptr")(a, c)), P("my_ptr")(b, c))))
 
     assert(!sfp2.isDelimited)
 
-    val sfp3 = new StackForestProjection(SortedSet(_1), SortedSet(), SortedSet(projections.TreeProjection(Seq(P("my_ptr")(_1, b), P("my_ptr")(a, c)), P("my_ptr")(b, c))))
+    val sfp3 = new StackForestProjection(SortedSet(_1), SortedSet(), Seq(projections.TreeProjection(Seq(P("my_ptr")(_1, b), P("my_ptr")(a, c)), P("my_ptr")(b, c))))
 
     assert(!sfp3.isDelimited)
   }

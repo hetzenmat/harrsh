@@ -3,7 +3,7 @@ name := "harrsh"
 
 version := "1.0"
 
-scalaVersion := "2.13.5"
+scalaVersion := "2.13.6"
 
 // scalacOptions ++= Seq("-Xmax-classfile-name","78")
 

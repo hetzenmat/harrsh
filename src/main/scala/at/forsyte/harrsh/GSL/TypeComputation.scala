@@ -51,7 +51,7 @@ class TypeComputation(val formula: GslFormula) extends LazyLogging {
 
   private def types(gslFormula: GslFormula, ac: AliasingConstraint[Var]): Set[PhiType] = gslFormula match {
     case atom: Atom => atom match {
-      case Atom.Emp() => Set(PhiType.empty)
+      case Atom.Emp => Set(PhiType.empty)
       case e: Equality => TypeComputation.equality(e, ac)
       case d: DisEquality => TypeComputation.disEquality(d, ac)
       case p: PointsTo => TypeComputation.pointsTo(p, ac)

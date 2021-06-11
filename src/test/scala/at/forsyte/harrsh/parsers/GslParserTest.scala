@@ -19,13 +19,13 @@ class GslParserTest extends AnyFlatSpec {
 
   "GSL parser" should "accept well-formed GSL formulae" in {
     val valid = List(
-      ("""a = a /\ (((((emp) -* emp))))""", MagicWand(Equality(a, a), Emp(), Emp())),
-      ("emp", Emp()),
-      ("((((     emp    )  )  )     )", Emp()),
+      ("""a = a /\ (((((emp) -* emp))))""", MagicWand(Equality(a, a), Emp, Emp)),
+      ("emp", Emp),
+      ("((((     emp    )  )  )     )", Emp),
       ("""a = b /\ b != c \/ a = c * a -> <b, null, null>""", SeparatingConjunction(Disjunction(StandardConjunction(Equality(a, b), DisEquality(b, c)), Equality(a, c)), PointsTo(a, Vector(b, NullConst, NullConst)))),
-      ("""emp /\ ((a = b -* test(x1, null) ))""", MagicWand(Emp(), Equality(a, b), PredicateCall("test", Vector(FreeVar("x1"), NullConst)))),
-      ("""((a = b -* test(x1, null) )) /\ ((emp))""", MagicWand(Emp(), Equality(a, b), PredicateCall("test", Vector(FreeVar("x1"), NullConst)))),
-      ("""a = c /\ ~emp""", Negation(Equality(a, c), Emp()))
+      ("""emp /\ ((a = b -* test(x1, null) ))""", MagicWand(Emp, Equality(a, b), PredicateCall("test", Vector(FreeVar("x1"), NullConst)))),
+      ("""((a = b -* test(x1, null) )) /\ ((emp))""", MagicWand(Emp, Equality(a, b), PredicateCall("test", Vector(FreeVar("x1"), NullConst)))),
+      ("""a = c /\ ~emp""", Negation(Equality(a, c), Emp))
     )
 
     for ((input, expected) <- valid) {

@@ -51,7 +51,9 @@ class PhiType private(val projections: SortedSet[StackForestProjection]) extends
     case v: PhiType => v.projections == projections
   }
 
-  override def hashCode(): Int = projections.hashCode()
+  override def hashCode: Int = projections.hashCode()
+
+  override def toString: String = projections.toString()
 }
 
 object PhiType {
@@ -146,6 +148,11 @@ object PhiType {
     r
   }
 
+  /**
+    * Semantic way of computing pointer models instead of iterating over all assignments to {0, ..., n}
+    *
+    * Should be equivalent to the exhaustive way
+    */
   def ptrmodel2(sid: SID_btw, ac: AliasingConstraint[Var], pointsTo: PointsTo): PhiType = {
 
     val partitions: Seq[Var] = pointsTo.vars.map(v => AliasingConstraint.largestAlias(ac, v)).incl(NullConst).toSeq.sorted
@@ -201,7 +208,7 @@ object PhiType {
               if (!ruleSatisfiable(subst)) Seq()
               else Seq(Some(new StackForestProjection(SortedSet.empty,
                                                       SortedSet.from(bv.take(univVars.size)),
-                                                      SortedSet.from(Seq(tp)))))
+                                                      Seq(tp))))
             } else {
               (for (assignment <- Utils.allAssignments(toAssign.toSeq.sorted, partitions)) yield {
 
@@ -214,7 +221,7 @@ object PhiType {
                 if (!ruleSatisfiable(substAll)) None
                 else Some(new StackForestProjection(SortedSet.empty,
                                                     SortedSet.from(bv.take(univVars.size)),
-                                                    SortedSet.from(Seq(tp))))
+                                                    Seq(tp)))
               }): Seq[Option[StackForestProjection]]
             }
           }).flatten.flatten.toSet: Set[StackForestProjection]
