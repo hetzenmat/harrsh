@@ -3,10 +3,9 @@ package at.forsyte.harrsh.GSL.projections.optimized
 import at.forsyte.harrsh.GSL.GslFormula.Atom.PointsTo
 import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.GSL.projections.optimized.StackForestProjection.{boundVariables, freeVariables}
-import at.forsyte.harrsh.GSL.projections.optimized.TreeProjection.{PredicateCall, TreeProjection, orderingPredicateCall, orderingTreeProjection}
+import at.forsyte.harrsh.GSL.projections.optimized.TreeProjection.{PredicateCall, TreeProjection, Var, orderingPredicateCall, orderingTreeProjection}
 import at.forsyte.harrsh.GSL.query.QueryContext
-import at.forsyte.harrsh.GSL.{AliasingConstraint, Env, RuleInstance, Substitution, Utils}
-import at.forsyte.harrsh.seplog.BoundVar
+import at.forsyte.harrsh.GSL._
 
 import scala.annotation.tailrec
 import scala.collection.{Searching, SortedSet}
@@ -93,10 +92,10 @@ class StackForestProjection(val guardedExistentials: Int,
     *
     * Finished
     */
-  def isDelimited(sid: SID_btw): Boolean =
-    formula.flatten.forall(call => QueryContext.getRootArgument(call) > 0) && {
+  def isDelimited(sid: SID_btw = QueryContext.getSid): Boolean =
+    formula.flatten.forall(call => TreeProjection.getRootArgument(call, sid) > 0) && {
       val allPredCallsLeft: Seq[PredicateCall] = formula.iterator.flatMap(tp => TreeProjection.getHolePreds(tp)).toSeq
-      val setLeftRootArgs = allPredCallsLeft.map(call => QueryContext.getRootArgument(call)).toSet
+      val setLeftRootArgs = allPredCallsLeft.map(call => TreeProjection.getRootArgument(call, sid)).toSet
 
       setLeftRootArgs.size == allPredCallsLeft.size
     }
@@ -218,6 +217,10 @@ object StackForestProjection {
 
   val empty: StackForestProjection = new StackForestProjection(0, 0, IndexedSeq.empty)
 
+  def indexToUniversal(i: Int): Var = i * -2
+
+  def indexToExistential(i: Int): Var = i * -2 + 1
+
   def normalized(exCount: Int, uvCount: Int, tps: IndexedSeq[TreeProjection]): StackForestProjection = {
     var exCounter = exCount
     var uvCounter = uvCount
@@ -248,14 +251,14 @@ object StackForestProjection {
   }
 
   // Finished
-  def fromPtrmodel(ac: AliasingConstraint[Int], inst: RuleInstance, model: Map[Int, Int], pointsTo: PointsTo, sid: SID_btw): StackForestProjection = {
+  def fromPtrmodel(ac: AliasingConstraint[Int], inst: RuleInstance, model: Map[Int, Int], pointsTo: PointsTo): StackForestProjection = {
     val imgS: Set[Int] = model.values.toSet
 
     // Set[Int] : forall i, i > 0
     val universalQuantified: Set[Int] = inst.locs.diff(imgS)
 
     // model: var -> loc
-    val stackRepl = (model.toSeq.map(_.swap).filter(_._1 > 0).map(kv => (kv._1, AliasingConstraint.largestAliasInt(ac, kv._2)))
+    val stackRepl = (model.toSeq.map(_.swap).filter(_._1 > 0).map(kv => (kv._1, ac.largestAlias(kv._2)))
       ++ universalQuantified.map(loc => (loc, -loc))).toMap
     // stackRepl: loc -> var
 
@@ -292,7 +295,7 @@ object StackForestProjection {
 
   def freeVariables(formula: Iterable[TreeProjection]): Set[Int] = formulaFlatMap(formula, predCall => predCall.tail.filter(_ >= 0)).toSet
 
-  def composition(left: StackForestProjection, right: StackForestProjection, sid: SID_btw): Set[StackForestProjection] = {
+  def composition(left: StackForestProjection, right: StackForestProjection): Set[StackForestProjection] = {
     Utils.debugRequire(allRescopings(left, right) == allRescopings(right, left))
 
     allRescopings(left, right).flatMap(sfp => sfp.derivableSet)
@@ -357,7 +360,8 @@ object StackForestProjection {
   * corresponds to the root predicate and the following predicate calls represent the hole predicates.
   */
 object TreeProjection {
-  type PredicateCall = IndexedSeq[Int]
+  type Var = Int
+  type PredicateCall = IndexedSeq[Var]
   type TreeProjection = IndexedSeq[PredicateCall]
 
   def unapply(treeProjection: TreeProjection): Option[(IndexedSeq[PredicateCall], PredicateCall)] = {
@@ -366,16 +370,16 @@ object TreeProjection {
       Some(getHolePreds(treeProjection), getRootPred(treeProjection))
   }
 
-  val orderingPredicateCall: Ordering[PredicateCall] = Ordering.Implicits.seqOrdering[IndexedSeq, Int]
+  val orderingPredicateCall: Ordering[PredicateCall] = Ordering.Implicits.seqOrdering[IndexedSeq, Var]
   val orderingTreeProjection: Ordering[TreeProjection] = Ordering.Implicits.seqOrdering[IndexedSeq, PredicateCall](orderingPredicateCall)
 
-  def variableIterator(treeProjection: TreeProjection): Iterator[Int] = new Iterator[Int] {
+  def variableIterator(treeProjection: TreeProjection): Iterator[Var] = new Iterator[Var] {
     var currentPred = 0
     var currentVar = 0
 
     override def hasNext: Boolean = currentPred <= treeProjection.size && currentVar <= arity(treeProjection(currentPred))
 
-    override def next(): Int = {
+    override def next(): Var = {
       val pred = treeProjection(currentPred)
       val variable = pred(currentVar)
 
@@ -387,6 +391,9 @@ object TreeProjection {
   }
 
   @inline def arity(predicateCall: PredicateCall): Int = predicateCall.size - 1
+
+  @inline def getRootArgument(predicateCall: PredicateCall, sid: SID_btw = QueryContext.getSid): Var =
+    predicateCall(sid.predicates(Env.predReverse(predicateCall.head)).predrootIndex + 1)
 
   @inline def reprPredicateCall(predicateCall: PredicateCall, sid: SID_btw): String = {
     Env.predReverse(predicateCall.head) + predicateCall.tail.map(Env.varReverse).mkString("(", ", ", ")")

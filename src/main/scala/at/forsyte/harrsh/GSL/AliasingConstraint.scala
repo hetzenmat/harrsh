@@ -1,15 +1,16 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL.AliasingConstraint.ACOrdering
 import at.forsyte.harrsh.GSL.Utils.SetUtils
 import at.forsyte.harrsh.seplog.{NullConst, Var}
 
 import scala.collection.{SortedSet, mutable}
 
-class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[SortedSet[T]])(implicit ord: Ordering[T]) {
+class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[SortedSet[T]])(implicit ord: ACOrdering[T]) {
 
   val eqClass: mutable.Map[T, Int] = mutable.Map.empty
 
-  Utils.debugRequire(Utils.isSorted(partition)(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
+  Utils.debugRequire(Utils.isSorted(partition)(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering)))
   Utils.debugRequire(partition.flatten.toSet == domain)
   Utils.debugRequire(partition.forall(_.nonEmpty))
 
@@ -27,11 +28,13 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
     }
   }
 
-  def isLone(v: T): Boolean = this(v).size == 1
+  def isLone(v: T): Boolean = this (v).size == 1
 
-  def getEquivalenceClass(v: T): SortedSet[T] = this(v)
+  def getEquivalenceClass(v: T): SortedSet[T] = this (v)
 
   private def apply(v: T): SortedSet[T] = partition(eqClassGet(v))
+
+  def largestAlias(v: T): T = this (v).max(ord.ordering)
 
   def =:=(left: T, right: T): Boolean = eqClassGet(left) == eqClassGet(right)
 
@@ -47,16 +50,16 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
     val newDomain = domain.incl(v)
 
     Set.from(partition.zipWithIndex.map({
-      case (set, idx) => new AliasingConstraint(newDomain, partition.updated(idx, set.union(Set(v))).sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
-    })).incl(new AliasingConstraint(newDomain, (partition :+ SortedSet(v)).sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T])))
+      case (set, idx) => new AliasingConstraint(newDomain, partition.updated(idx, set.union(Set(v))).sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering)))
+    })).incl(new AliasingConstraint(newDomain, (partition :+ SortedSet(v)(ord.ordering)).sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering))))
   }
 
   def rename(subst: Map[T, T]): AliasingConstraint[T] = {
     Utils.debugRequire(domain.disjoint(subst.values.toSet))
 
-    val newPartition = partition.map(ss => ss.map(v => subst.getOrElse(v, v)))
+    val newPartition = partition.map(ss => ss.map(v => subst.getOrElse(v, v))(ord.ordering))
 
-    new AliasingConstraint(domain.map(i => subst.getOrElse(i, i)), newPartition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
+    new AliasingConstraint(domain.map(i => subst.getOrElse(i, i)), newPartition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering)))
   }
 
   def remove(elems: Seq[T]): AliasingConstraint[T] = elems.foldLeft(this) { (ac, x) => ac.remove(x) }
@@ -67,7 +70,7 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
 
     val newPartition = partition.map(_.filter(_ != x))
 
-    new AliasingConstraint(domain.excl(x), newPartition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
+    new AliasingConstraint(domain.excl(x), newPartition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering)))
   }
 
   def reverseRenaming(x: Seq[T], y: Seq[T]): AliasingConstraint[T] = {
@@ -92,7 +95,7 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
         }
     })
 
-    new AliasingConstraint(domain.union(xSet), newPartition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
+    new AliasingConstraint(domain.union(xSet), newPartition.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering)))
   }
 
   def restricted(v: Set[T]): AliasingConstraint[T] = {
@@ -100,7 +103,7 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
 
     val partitionFiltered = partitionRemoved.filter(_.nonEmpty)
 
-    new AliasingConstraint(domain.intersect(v), partitionFiltered.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
+    new AliasingConstraint(domain.intersect(v), partitionFiltered.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering)))
   }
 
   override def hashCode(): Int = {
@@ -118,7 +121,7 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
   override def toString: String = {
 
     val part = partition.map(p => p.mkString("{", ", ", "}")).mkString(" ")
-    val eq = domain.toSeq.sorted.map(v => v + " -> " + eqClassGet(v)).mkString(" ")
+    val eq = domain.toSeq.sorted(ord.ordering).map(v => v + " -> " + eqClassGet(v)).mkString(" ")
 
     part + " " + eq
   }
@@ -126,23 +129,36 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
 
 object AliasingConstraint {
 
-  def largestAlias(ac: AliasingConstraint[Var], v: Var): Var = {
-    if (ac.domain.contains(NullConst) && ac =:= (v, NullConst)) NullConst
-    else ac(v).max
+  sealed trait ACOrdering[T] {
+    val ordering: Ordering[T]
   }
 
-  def largestAliasInt(ac: AliasingConstraint[Int], v: Int): Int = {
-    if (ac.domain.contains(0) && ac =:= (v, 0)) 0
-    else ac(v).max
+   implicit object ACIntOrdering extends ACOrdering[Int] {
+    override val ordering: Ordering[Int] =
+      (x: Int, y: Int) =>
+        if (x < 0 || y < 0) throw new IllegalArgumentException("Aliasing Constraints should only work with natural numbers")
+        else if (x == y) 0
+        else if (x == 0) 1 // 0 (i.e., the null pointer shall be the biggest element)
+        else if (y == 0) -1
+        else x.compare(y)
   }
 
-  def allAliasingConstraints[T](elems: Set[T])(implicit ord: Ordering[T]): LazyList[AliasingConstraint[T]] =
+   implicit object ACVarOrdering extends ACOrdering[Var] {
+    override val ordering: Ordering[Var] = {
+      case (x, y) if x.equals(y) => 0
+      case (NullConst, _) => 1
+      case (_, NullConst) => -1
+      case (x, y) => x.compare(y)
+    }
+  }
+
+  def allAliasingConstraints[T](elems: Set[T])(implicit ord: ACOrdering[T]): LazyList[AliasingConstraint[T]] =
     allPartitions(elems).map { partition =>
       new AliasingConstraint(elems,
-                             partition.map(v => SortedSet.from(v)).toIndexedSeq.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T]))
+                             partition.map(v => SortedSet.from(v)(ord.ordering)).toIndexedSeq.sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering)))
     }
 
-  def allPartitions[A](set: Set[A])(implicit ordering: Ordering[A]): LazyList[Set[Set[A]]] = {
+  def allPartitions[A](set: Set[A])(implicit ord: ACOrdering[A]): LazyList[Set[Set[A]]] = {
     def aux(seq: Seq[A]): LazyList[Set[Set[A]]] = {
       seq match {
         case Seq() => LazyList(Set.empty)
@@ -156,6 +172,6 @@ object AliasingConstraint {
       }
     }
 
-    aux(set.toSeq.sorted)
+    aux(set.toSeq.sorted(ord.ordering))
   }
 }

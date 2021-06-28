@@ -1,10 +1,11 @@
-package at.forsyte.harrsh.GSL.projections
+package at.forsyte.harrsh.GSL.projections.prototype
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{PointsTo, PredicateCall}
 import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.GSL._
-import at.forsyte.harrsh.GSL.projections.StackForestProjection.{boundVariables, freeVariables, varSeq}
+import at.forsyte.harrsh.GSL.projections.prototype
+import at.forsyte.harrsh.GSL.projections.prototype.StackForestProjection.{boundVariables, freeVariables, varSeq}
 import at.forsyte.harrsh.GSL.query.QueryContext
 import at.forsyte.harrsh.seplog._
 
@@ -108,8 +109,8 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
   /**
     * Determine if the projection is delimited wrt. to the given SID (Definition 8.2).
     */
-  lazy val isDelimited: Boolean =
-    allCalls.forall(call => freeVars.asInstanceOf[Set[Var]].contains(call.args(QueryContext.sid.predicates(call.pred).predrootIndex))) && {
+  def isDelimited(sid: SID_btw = QueryContext.getSid): Boolean =
+    allCalls.forall(call => freeVars.asInstanceOf[Set[Var]].contains(call.args(sid.predicates(call.pred).predrootIndex))) && {
 
       if (formula.exists(tp => tp.allholepreds.size == 1 && tp.allholepreds.head == tp.rootpred)) {
         //return false
@@ -122,7 +123,7 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
 
       def prop(sf: StackForestProjection): Boolean = {
         val vars = sf.formula.map(_.rootpred).map({ case PredicateCall(pred, args) =>
-          val p = QueryContext.sid.predicates(pred)
+          val p = sid.predicates(pred)
           args(p.predrootIndex)
         }).toSet
 
@@ -137,7 +138,7 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
       val allPredCallsLeft: Seq[PredicateCall] = formula.toSeq.flatMap(_.allholepreds)
       val allVars = freeVars.asInstanceOf[Set[Var]].union(boundVars.asInstanceOf[Set[Var]])
 
-      val r = allVars.forall(variable => allPredCallsLeft.count(p => p.args(QueryContext.sid.predicates(p.pred).predrootIndex) == variable) <= 1)
+      val r = allVars.forall(variable => allPredCallsLeft.count(p => p.args(sid.predicates(p.pred).predrootIndex) == variable) <= 1)
 
       r
     }
@@ -157,7 +158,7 @@ class StackForestProjection(val guardedExistentials: SortedSet[BoundVar],
           if (ix == -1)
             None
           else {
-            val newProj = projections.TreeProjection((calls.zipWithIndex.collect({ case (v, k) if k != ix => v }) ++ f.allholepreds).sorted,
+            val newProj = prototype.TreeProjection((calls.zipWithIndex.collect({ case (v, k) if k != ix => v }) ++ f.allholepreds).sorted,
                                                      rootpred)
 
             val newFormulas = newProj +: formulaWithIndex.collect({ case (v, k) if k != i && k != j => v })
@@ -279,7 +280,7 @@ object StackForestProjection {
     val universals: SortedSet[BoundVar] = SortedSet.from((1 to univ.size).map(BoundVar.apply))
 
     val univRepl = univ.zip(universals).toMap
-    val stackRepl_ = model.toSeq.map(t => (t._2, t._1)).toMap.map(kv => (kv._1, AliasingConstraint.largestAlias(ac, kv._2)))
+    val stackRepl_ = model.toSeq.map(t => (t._2, t._1)).toMap.map(kv => (kv._1, ac.largestAlias(kv._2)))
     val stackRepl = stackRepl_.updated(0, NullConst)
 
     // sanity check
@@ -287,7 +288,7 @@ object StackForestProjection {
 
     val r = new StackForestProjection(SortedSet(),
                                       universals,
-                                      Seq(projections.TreeProjection(projectLoc._1.map({
+                                      Seq(prototype.TreeProjection(projectLoc._1.map({
                                         case (predName, args) =>
                                           Atom.PredicateCall(predName, args.map(i => univRepl.getOrElse(i, stackRepl(i))))
                                       }).sorted, Atom.PredicateCall(projectLoc._2._1, projectLoc._2._2.map(i => univRepl.getOrElse(i, stackRepl(i)))))))
@@ -441,4 +442,8 @@ case class TreeProjection(allholepreds: Seq[GslFormula.Atom.PredicateCall], root
     else
       res
   }
+}
+
+object TreeProjection {
+  @inline def getRootPred(treeProjection: TreeProjection): GslFormula.Atom.PredicateCall = treeProjection.rootpred
 }

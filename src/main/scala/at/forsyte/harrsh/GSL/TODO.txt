@@ -1,0 +1,4 @@
+1. Do type computations only for aliasing constraints whose domain is equal to the variables in the predicate / formula
+2. Find a clever way to switch between "normal" and optimized stack-forest projections
+3. Replace require / Utils.debugRequire with assume to be able to elide those calls
+4. Adapt semantic ptrmodel method

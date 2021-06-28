@@ -2,7 +2,7 @@ package at.forsyte.harrsh.GSL
 
 import at.forsyte.harrsh.GSL.GslFormula.Atom
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{DisEquality, Equality, PointsTo, PredicateCall}
-import at.forsyte.harrsh.GSL.query.QueryContext.sid
+import at.forsyte.harrsh.GSL.query.QueryContext.getSid
 import at.forsyte.harrsh.seplog.{FreeVar, NullConst, Var}
 import com.typesafe.scalalogging.LazyLogging
 
@@ -40,13 +40,10 @@ class TypeComputation(val formula: GslFormula) extends LazyLogging {
   def types(ac: AliasingConstraint[Var]): Set[PhiType] = types(formula, ac)
 
   def _reduce(types: Set[PhiType]): Set[PhiType] = {
-
     types.find(typ => types.excl(typ).exists(other => typ.projections.subsetOf(other.projections))) match {
       case Some(typ) => _reduce(types.excl(typ))
       case None => types
     }
-
-
   }
 
   private def types(gslFormula: GslFormula, ac: AliasingConstraint[Var]): Set[PhiType] = gslFormula match {
@@ -56,7 +53,7 @@ class TypeComputation(val formula: GslFormula) extends LazyLogging {
       case d: DisEquality => TypeComputation.disEquality(d, ac)
       case p: PointsTo => TypeComputation.pointsTo(p, ac)
       case PredicateCall(predName, args) =>
-        val pred = sid.predicates(predName)
+        val pred = getSid.predicates(predName)
         val types = predicateTypes.getTypeLazy(pred, ac.reverseRenaming(pred.args.map(FreeVar), args))
 
         PhiType.rename(pred.args.map(FreeVar), args, ac, types).toSet
@@ -138,7 +135,7 @@ object TypeComputation {
     if (ac =:= (pointsTo.from, NullConst)) {
       Set.empty
     } else {
-      val r = Set(PhiType.ptrmodel(ac, pointsTo).substitute(Substitution.from(ac.domain.map(v => (v, AliasingConstraint.largestAlias(ac, v))))))
+      val r = Set(PhiType.ptrmodel(ac, pointsTo).substitute(Substitution.from(ac.domain.map(v => (v, ac.largestAlias(v))))))
       r
     }
 }

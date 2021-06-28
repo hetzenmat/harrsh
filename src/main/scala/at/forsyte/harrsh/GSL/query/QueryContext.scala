@@ -1,10 +1,7 @@
 
 package at.forsyte.harrsh.GSL.query
 
-import at.forsyte.harrsh.GSL.Env
-import at.forsyte.harrsh.GSL.GslFormula.Atom.PredicateCall
 import at.forsyte.harrsh.GSL.SID.SID_btw
-import at.forsyte.harrsh.GSL.projections.optimized.TreeProjection
 
 object QueryContext {
   private var currentSID: SID_btw = _
@@ -14,11 +11,5 @@ object QueryContext {
   }
 
   @inline
-  def getRootArgument(predicateCall: TreeProjection.PredicateCall): Int =
-    predicateCall(currentSID.predicates(Env.predReverse(predicateCall.head)).predrootIndex + 1)
-
-  def getRootArgument(predicateCall: PredicateCall): Int = ??? // TODO
-
-  @inline
-  def sid: SID_btw = currentSID
+  def getSid: SID_btw = currentSID
 }

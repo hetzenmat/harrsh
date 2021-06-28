@@ -1,10 +1,9 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.GSL.projections.StackForestProjection
+import at.forsyte.harrsh.GSL.projections.prototype.StackForestProjection
 import at.forsyte.harrsh.seplog.Var
 
 import scala.collection.mutable.ArrayBuffer
-
 
 object Utils {
 
@@ -40,7 +39,7 @@ object Utils {
     isCanonicalSF(t.projections, ac)
 
   def isCanonicalSF(s: Iterable[StackForestProjection], ac: AliasingConstraint[Var]): Boolean =
-    s.forall(sf => sf.freeVars.asInstanceOf[Set[Var]].forall(v => AliasingConstraint.largestAlias(ac, v) == v))
+    s.forall(sf => sf.freeVars.forall(v => ac.largestAlias(v) == v))
 
   def compareLexicographically[A](a: Seq[A], b: Seq[A])(implicit evidence: A => Ordered[A]): Int = {
     val res = a.zip(b).collectFirst({
@@ -70,27 +69,27 @@ object Utils {
     }
   }
 
-//  def chainIterators[A, B](sequence: IndexedSeq[A], f: A => Iterator[B]): Iterator[B] = new Iterator[B] {
-//    var currentIterator: Iterator[B] = Iterator.empty
-//    var index: Int = -1
-//    searchNext()
-//
-//    override def hasNext: Boolean = index <= sequence.size && currentIterator.hasNext
-//
-//    private def searchNext(): Unit = {
-//      while (!currentIterator.hasNext && index < sequence.size) {
-//        index += 1
-//        currentIterator = f(sequence(index))
-//      }
-//    }
-//
-//    override def next(): B = {
-//      val a = currentIterator.next()
-//      searchNext()
-//
-//      a
-//    }
-//  }
+  //  def chainIterators[A, B](sequence: IndexedSeq[A], f: A => Iterator[B]): Iterator[B] = new Iterator[B] {
+  //    var currentIterator: Iterator[B] = Iterator.empty
+  //    var index: Int = -1
+  //    searchNext()
+  //
+  //    override def hasNext: Boolean = index <= sequence.size && currentIterator.hasNext
+  //
+  //    private def searchNext(): Unit = {
+  //      while (!currentIterator.hasNext && index < sequence.size) {
+  //        index += 1
+  //        currentIterator = f(sequence(index))
+  //      }
+  //    }
+  //
+  //    override def next(): B = {
+  //      val a = currentIterator.next()
+  //      searchNext()
+  //
+  //      a
+  //    }
+  //  }
 
   def allAssignments[A, B](elems: Seq[A], values: Seq[B]): Seq[Seq[(A, B)]] = {
     require(values.nonEmpty)
@@ -126,13 +125,13 @@ object Utils {
       currentLength += 1
     }
 
-//    def aux(length: Int): IndexedSeq[(Int, IndexedSeq[Int])] =
-//      length match {
-//        case 1 => (1, IndexedSeq(-1)) +: values.map(v => (0, IndexedSeq(v)))
-//        case _ => values.flatMap(v => aux(length - 1).flatMap({ case (c, value) =>
-//          Seq((c, -c +: value), (c + 1, -(c + 1) +: value), (c, v +: value))
-//        }))
-//      }
+    //    def aux(length: Int): IndexedSeq[(Int, IndexedSeq[Int])] =
+    //      length match {
+    //        case 1 => (1, IndexedSeq(-1)) +: values.map(v => (0, IndexedSeq(v)))
+    //        case _ => values.flatMap(v => aux(length - 1).flatMap({ case (c, value) =>
+    //          Seq((c, -c +: value), (c + 1, -(c + 1) +: value), (c, v +: value))
+    //        }))
+    //      }
 
     choices.toIndexedSeq
   }

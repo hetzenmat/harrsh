@@ -1,5 +1,6 @@
 package at.forsyte.harrsh.GSL
 
+import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 
 trait Substitutable[A, B] {
@@ -97,7 +98,7 @@ object GslFormula {
       override def _substitute(substitution: Substitution[Var]): PointsTo = PointsTo(substitution(from), to.map(substitution.apply))
 
       def ptrmodel(ac: AliasingConstraint[Var]): Map[Var, Int] =
-        vars.foldLeft(Map(NullConst.asInstanceOf[Var] -> 0)) { (map, v) =>
+        vars.foldLeft(Map(NullConst -> 0): Map[Var, Int]) { (map, v) =>
           if (ac.domain.contains(v)) {
             if (ac =:= (v, NullConst))
               map.updated(v, 0)
@@ -129,6 +130,8 @@ object GslFormula {
       override def _substitute(substitution: Substitution[Var]): PredicateCall = PredicateCall(pred, args.map(substitution.apply))
 
       def boundVars: Set[BoundVar] = args.collect({ case v: BoundVar => v }).toSet
+
+      def getRootArgument(sid: SID_btw): Var = args(sid.predicates(pred).predrootIndex)
 
       override def toString: String = pred + args.mkString("(", ", ", ")")
 

@@ -13,7 +13,7 @@ class AliasingConstraintTest extends AnyFlatSpec {
 
   it should "correctly determine equalities between variables" in {
     val (a, b, c): (FreeVar, FreeVar, FreeVar) = (FreeVar("a"), FreeVar("b"), FreeVar("c"))
-    val ac = new AliasingConstraint(Set(a, b, c), IndexedSeq(SortedSet(a), SortedSet(b, c)))
+    val ac = new AliasingConstraint[Var](Set(a, b, c), IndexedSeq(SortedSet(a), SortedSet(b, c)))
 
     assert(a < b && a < c && b < c)
 
@@ -31,7 +31,7 @@ class AliasingConstraintTest extends AnyFlatSpec {
       assert(ac =:= (v, v))
     }
 
-    assert(AliasingConstraint.largestAlias(ac.asInstanceOf[AliasingConstraint[Var]], b) == c)
+    assert(ac.largestAlias(b) == c)
 
     for (e1 <- Seq(a, b, c);
          e2 <- Seq(a, b, c)) {
@@ -48,7 +48,7 @@ class AliasingConstraintTest extends AnyFlatSpec {
 
   it should "reject inconsistent domains" in {
     assertThrows[IllegalArgumentException] {
-      new AliasingConstraint(Set(FreeVar("a")), IndexedSeq())
+      new AliasingConstraint[Var](Set(FreeVar("a")), IndexedSeq())
     }
   }
 }

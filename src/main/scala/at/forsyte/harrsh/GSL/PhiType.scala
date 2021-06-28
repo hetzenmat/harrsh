@@ -1,12 +1,10 @@
 package at.forsyte.harrsh.GSL
 
-import at.forsyte.harrsh.GSL
 import at.forsyte.harrsh.GSL.GslFormula.Atom.{Equality, PointsTo, PredicateCall}
 import at.forsyte.harrsh.GSL.SID.SID_btw
-import at.forsyte.harrsh.GSL.projections.{StackForestProjection, TreeProjection, optimized}
-import at.forsyte.harrsh.GSL.query.QueryContext
+import at.forsyte.harrsh.GSL.projections.prototype.{StackForestProjection, TreeProjection}
+import at.forsyte.harrsh.GSL.query.QueryContext.getSid
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
-import QueryContext.sid
 
 import scala.collection.SortedSet
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,19 +16,19 @@ import scala.concurrent.{Await, Future}
   */
 class PhiType private(val projections: SortedSet[StackForestProjection]) extends Ordered[PhiType] {
 
-  lazy val alloced: Set[FreeVar] = projections.unsorted.
-                                              flatMap(_.formula)
-                                              .map(_.rootpred)
-                                              .map(c => c.args(sid.predicates(c.pred).predrootIndex)).asInstanceOf[Set[FreeVar]]
+  lazy val alloced: collection.Set[Var] = projections.unsorted.
+                                          flatMap(_.formula)
+                                          .map(tp => TreeProjection.getRootPred(tp))
+                                          .map(call => call.getRootArgument(getSid))
 
-  lazy val freeVars: SortedSet[FreeVar] = projections.flatMap(_.freeVars)
+  lazy val freeVars: SortedSet[Var] = projections.flatMap(_.freeVars)
 
-  def rename(x: Seq[FreeVar], y: Seq[FreeVar], ac: AliasingConstraint[Var]): PhiType = {
+  def rename(x: Seq[Var], y: Seq[Var], ac: AliasingConstraint[Var]): PhiType = {
     PhiType.rename(x, y, ac, Set(this)).head
   }
 
   def forget(ac: AliasingConstraint[Var], x: FreeVar): Option[PhiType] = {
-    PhiType.from(projections.map(_.forget(ac, x)).filter(_.isDelimited), ac)
+    PhiType.from(projections.map(_.forget(ac, x)).filter(_.isDelimited()), ac)
   }
 
   def extend(x: FreeVar, ac: AliasingConstraint[Var]): Option[PhiType] = {
@@ -38,7 +36,7 @@ class PhiType private(val projections: SortedSet[StackForestProjection]) extends
   }
 
   def extend(ac: AliasingConstraint[Var], acSup: AliasingConstraint[Var]): PhiType = {
-    PhiType.extend(ac, acSup, Set(this), sid).head
+    PhiType.extend(ac, acSup, Set(this), getSid).head
   }
 
   override def compare(that: PhiType): Int = {
@@ -62,7 +60,7 @@ object PhiType {
 
   def from(it: Iterable[StackForestProjection], ac: AliasingConstraint[Var]): Option[PhiType] = {
 
-    Utils.debugRequire(it.forall(_.isDelimited))
+    Utils.debugRequire(it.forall(_.isDelimited()))
 
     if (it.isEmpty /*|| it.exists(!_.isDelimited(sid))*/ ) {
       // TODO: Really return None if empty?
@@ -85,7 +83,7 @@ object PhiType {
         StackForestProjection.composition(phi1, phi2)
       }
 
-      PhiType.from(projections.flatten.filter(_.isDelimited), ac)
+      PhiType.from(projections.flatten.filter(_.isDelimited()), ac)
     } else {
       None
     }
@@ -110,7 +108,7 @@ object PhiType {
     require(x.length == x.toSet.size)
     require(y.toSet[Var].subsetOf(ac.domain))
 
-    val yMax = y.map(v => AliasingConstraint.largestAlias(ac, v))
+    val yMax = y.map(v => ac.largestAlias(v))
     val subst: Substitution[Var] = Substitution.from(x.zip(yMax))
     types.flatMap(t => PhiType.from(t.projections.map(_.substitute(subst)), ac))
   }
@@ -123,7 +121,7 @@ object PhiType {
     require(ac.subsetOf(acSup))
 
     val y = ac.partition.map(_.max)
-    val yReplaced = y.map(v => AliasingConstraint.largestAlias(acSup, v))
+    val yReplaced = y.map(v => acSup.largestAlias(v))
     val subst: Substitution[Var] = Substitution.from(y.zip(yReplaced))
 
     // TODO: Recheck definition
@@ -152,15 +150,17 @@ object PhiType {
     * Semantic way of computing pointer models instead of iterating over all assignments to {0, ..., n}
     *
     * Should be equivalent to the exhaustive way
+    *
+    * TODO: Adapt to overload
     */
-  def ptrmodel2(sid: SID_btw, ac: AliasingConstraint[Var], pointsTo: PointsTo): PhiType = {
+    def ptrmodel2(sid: SID_btw, ac: AliasingConstraint[Var], pointsTo: PointsTo): PhiType = {
 
-    val partitions: Seq[Var] = pointsTo.vars.map(v => AliasingConstraint.largestAlias(ac, v)).incl(NullConst).toSeq.sorted
+    val partitions: Seq[Var] = pointsTo.vars.map(v => ac.largestAlias(v)).incl(NullConst).toSeq.sorted
 
-    val projections = (for (pred <- sid.predicates.values;
-                            rule <- pred.rules if rule.pointsTo.to.size == pointsTo.to.size) yield {
+      val projections = (for (pred <- sid.predicates.values;
+                              rule <- pred.rules if rule.pointsTo.to.size == pointsTo.to.size) yield {
 
-      val replacement: Option[Map[Var, Var]] = rule.pointsTo.varSeq.zip(pointsTo.varSeq.map(v => AliasingConstraint.largestAlias(ac, v))).foldLeft(Some(Map.empty): Option[Map[Var, Var]])({
+      val replacement: Option[Map[Var, Var]] = rule.pointsTo.varSeq.zip(pointsTo.varSeq.map(v => ac.largestAlias(v))).foldLeft(Some(Map.empty): Option[Map[Var, Var]])({
         case (None, _) => None
         case (Some(m), (l, r)) =>
           if (l == NullConst && r != NullConst) None
@@ -173,86 +173,86 @@ object PhiType {
         case Some(replacement) => Some {
           val otherVars: Set[Var] = rule.allVars.diff(rule.pointsTo.vars)
 
-          (for (universals <- otherVars.subsets();
-                univAC <- AliasingConstraint.allAliasingConstraints(universals)) yield {
-            val toAssign = otherVars.diff(universals)
+            (for (universals <- otherVars.subsets();
+                  univAC <- AliasingConstraint.allAliasingConstraints(universals)) yield {
+              val toAssign = otherVars.diff(universals)
 
-            val bv = LazyList.from(1).map(BoundVar.apply)
-            val univVars = univAC.partition.map(_.max)
-            val univSubst: Map[Var, Var] = univVars.sorted.zip(bv).toMap
-            val subst: Substitution[Var] = Substitution.from(replacement)
+              val bv = LazyList.from(1).map(BoundVar.apply)
+              val univVars = univAC.partition.map(_.max)
+              val univSubst: Map[Var, Var] = univVars.sorted.zip(bv).toMap
+              val subst: Substitution[Var] = Substitution.from(replacement)
 
-            universals.foreach { v =>
-              subst.add(v, univSubst(AliasingConstraint.largestAlias(univAC, v)))
-            }
-
-            def ruleSatisfiable(subst: Substitution[Var]): Boolean = {
-              def eqHolds(eq: Equality): Boolean = (subst(eq.left), subst(eq.right)) match {
-                case (l: BoundVar, r: BoundVar) => l == r
-                case (l: FreeVar, r: FreeVar) => l == r
-                case (NullConst, NullConst) => true
-                case _ => false
+              universals.foreach { v =>
+                subst.add(v, univSubst(univAC.largestAlias(v)))
               }
 
-              val eqsHold = rule.equalities.forall(eqHolds)
-              val disEqsHold = rule.disEqualities.map(_.toEquality).forall(eq => !eqHolds(eq))
+              def ruleSatisfiable(subst: Substitution[Var]): Boolean = {
+                def eqHolds(eq: Equality): Boolean = (subst(eq.left), subst(eq.right)) match {
+                  case (l: BoundVar, r: BoundVar) => l == r
+                  case (l: FreeVar, r: FreeVar) => l == r
+                  case (NullConst, NullConst) => true
+                  case _ => false
+                }
 
-              eqsHold && disEqsHold
-            }
+                val eqsHold = rule.equalities.forall(eqHolds)
+                val disEqsHold = rule.disEqualities.map(_.toEquality).forall(eq => !eqHolds(eq))
 
-            if (toAssign.isEmpty) {
+                eqsHold && disEqsHold
+              }
 
-              val tp = TreeProjection(rule.calls.map(_.substitute(subst)).sorted,
-                                      PredicateCall(pred.name, pred.args.map(FreeVar).map(subst.apply)))
+              if (toAssign.isEmpty) {
 
-              if (!ruleSatisfiable(subst)) Seq()
-              else Seq(Some(new StackForestProjection(SortedSet.empty,
+                val tp = TreeProjection(rule.calls.map(_.substitute(subst)).sorted,
+                                        PredicateCall(pred.name, pred.args.map(FreeVar).map(subst.apply)))
+
+                if (!ruleSatisfiable(subst)) Seq()
+                else Seq(Some(new StackForestProjection(SortedSet.empty,
+                                                        SortedSet.from(bv.take(univVars.size)),
+                                                        Seq(tp))))
+              } else {
+                (for (assignment <- Utils.allAssignments(toAssign.toSeq.sorted, partitions)) yield {
+
+                  val substAll = subst.clone()
+                  substAll.addAll(assignment)
+
+                  val tp = TreeProjection(rule.calls.map(_.substitute(substAll)).sorted,
+                                          PredicateCall(pred.name, pred.args.map(FreeVar).map(substAll.apply)))
+
+                  if (!ruleSatisfiable(substAll)) None
+                  else Some(new StackForestProjection(SortedSet.empty,
                                                       SortedSet.from(bv.take(univVars.size)),
-                                                      Seq(tp))))
-            } else {
-              (for (assignment <- Utils.allAssignments(toAssign.toSeq.sorted, partitions)) yield {
+                                                      Seq(tp)))
+                }): Seq[Option[StackForestProjection]]
+              }
+            }).flatten.flatten.toSet: Set[StackForestProjection]
+          }: Option[Set[StackForestProjection]]
+        }
 
-                val substAll = subst.clone()
-                substAll.addAll(assignment)
+        result
+      }).flatten.flatten.toSet
 
-                val tp = GSL.projections.TreeProjection(rule.calls.map(_.substitute(substAll)).sorted,
-                                                        PredicateCall(pred.name, pred.args.map(FreeVar).map(substAll.apply)))
-
-                if (!ruleSatisfiable(substAll)) None
-                else Some(new StackForestProjection(SortedSet.empty,
-                                                    SortedSet.from(bv.take(univVars.size)),
-                                                    Seq(tp)))
-              }): Seq[Option[StackForestProjection]]
-            }
-          }).flatten.flatten.toSet: Set[StackForestProjection]
-        }: Option[Set[StackForestProjection]]
-      }
-
-      result
-    }).flatten.flatten.toSet
-
-    PhiType.from(projections.filter(_.isDelimited), ac).get
-  }
+      PhiType.from(projections.filter(_.isDelimited()), ac).get
+    }
 
   def ptrmodel(ac: AliasingConstraint[Var], pointsTo: PointsTo): PhiType = {
 
     val pm = pointsTo.ptrmodel(ac.restricted(pointsTo.vars.incl(NullConst)))
 
-    val k = sid.predicates.values.map(_.args.length).max
+    val k = getSid.predicates.values.map(_.args.length).max
 
-    val R = sid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size + k)
+    val R = getSid.allRuleInstancesForPointsTo(pm(pointsTo.from), pointsTo.to.map(pm), 0 to ac.domain.size + k)
 
     val types = R.map({
       case (_, instance) => StackForestProjection.fromPtrmodel(ac, instance, pm, pointsTo)
-    }).filter(_.isDelimited)
+    }).filter(_.isDelimited())
 
     val r = PhiType.from(types, ac)
 
-    val _2 = ptrmodel2(sid, ac, pointsTo)
-
-    if (_2 != r.get) {
-      require(false)
-    }
+    //    val _2 = ptrmodel2(getSid, ac, pointsTo)
+    //
+    //    if (_2 != r.get) {
+    //      require(false)
+    //    }
 
     r.get
   }
