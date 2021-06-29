@@ -108,7 +108,8 @@ object SID {
 
   case class Predicate[T <: AbstractSymbolicHeap](name: String, args: Seq[String], rules: Seq[T]) {
 
-    val freeVars: Set[Var] = args.map(FreeVar).toSet
+    val argsSeq: Seq[Var] = args.map(FreeVar)
+    val freeVars: Set[Var] = argsSeq.toSet
 
     /**
       * If the predicate satisfies progress, predrootIndex >= 0 and -1 otherwise.

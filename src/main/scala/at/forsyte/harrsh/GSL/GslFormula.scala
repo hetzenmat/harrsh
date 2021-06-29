@@ -3,10 +3,6 @@ package at.forsyte.harrsh.GSL
 import at.forsyte.harrsh.GSL.SID.SID_btw
 import at.forsyte.harrsh.seplog.{BoundVar, FreeVar, NullConst, Var}
 
-trait Substitutable[A, B] {
-  def substitute(a: A, substitution: Substitution[B]): A
-}
-
 /**
   * Created by Matthias Hetzenberger on 2021-02-07
   *

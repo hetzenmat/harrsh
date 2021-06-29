@@ -13,6 +13,11 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
   Utils.debugRequire(Utils.isSorted(partition)(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering)))
   Utils.debugRequire(partition.flatten.toSet == domain)
   Utils.debugRequire(partition.forall(_.nonEmpty))
+  Utils.debugRequire(
+    (for (i <- 0 until partition.size - 1;
+          j <- i + 1 until partition.size) yield
+      partition(i).intersect(partition(j)).isEmpty
+      ).forall(identity))
 
   private def eqClassGet(v: T): Int = {
     Utils.debugRequire(domain(v))
@@ -44,6 +49,12 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
     partition.forall(s => other.partition.exists(su => s.subsetOf(su)))
   }
 
+  def allExtensionsIt(v: Iterable[T]): Set[AliasingConstraint[T]] = {
+    assert(v.nonEmpty)
+
+    v.foldLeft(Set(this))((acs, v) => acs.flatMap(_.allExtensions(v)))
+  }
+
   def allExtensions(v: T): Set[AliasingConstraint[T]] = {
     Utils.debugRequire(!domain(v))
 
@@ -51,11 +62,12 @@ class AliasingConstraint[T](val domain: Set[T], val partition: IndexedSeq[Sorted
 
     Set.from(partition.zipWithIndex.map({
       case (set, idx) => new AliasingConstraint(newDomain, partition.updated(idx, set.union(Set(v))).sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering)))
-    })).incl(new AliasingConstraint(newDomain, (partition :+ SortedSet(v)(ord.ordering)).sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering))))
+    }) :+ new AliasingConstraint(newDomain, (partition :+ SortedSet(v)(ord.ordering)).sorted(scala.Ordering.Implicits.sortedSetOrdering[SortedSet, T](ord.ordering))))
   }
 
   def rename(subst: Map[T, T]): AliasingConstraint[T] = {
-    Utils.debugRequire(domain.disjoint(subst.values.toSet))
+    assert(subst.keySet.subsetOf(domain))
+    assert(domain.disjoint(subst.values.toSet))
 
     val newPartition = partition.map(ss => ss.map(v => subst.getOrElse(v, v))(ord.ordering))
 
@@ -133,7 +145,7 @@ object AliasingConstraint {
     val ordering: Ordering[T]
   }
 
-   implicit object ACIntOrdering extends ACOrdering[Int] {
+  implicit object ACIntOrdering extends ACOrdering[Int] {
     override val ordering: Ordering[Int] =
       (x: Int, y: Int) =>
         if (x < 0 || y < 0) throw new IllegalArgumentException("Aliasing Constraints should only work with natural numbers")
@@ -143,7 +155,7 @@ object AliasingConstraint {
         else x.compare(y)
   }
 
-   implicit object ACVarOrdering extends ACOrdering[Var] {
+  implicit object ACVarOrdering extends ACOrdering[Var] {
     override val ordering: Ordering[Var] = {
       case (x, y) if x.equals(y) => 0
       case (NullConst, _) => 1
